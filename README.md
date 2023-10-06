@@ -1,1 +1,3 @@
-# flatland
+# Flatland
+
+This is just a private project around AI... more to come...
