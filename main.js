@@ -67,18 +67,19 @@ class Being {
 
 //main
 const SQUARESIZE = 10;
-var slowdown=1000;
-var frameRate=1000/60;
+var slowdown = 500;
+var frameRate = 1000/60;
 
 //create world
 var world = new World();
 world.addSquare(new Being());
 
-
 //game loop
 var lastUpdate=0;
 var lastDraw=0;
-function gameLoop(timeStamp) {
+function gameLoop() {
+    timeStamp = performance.now();
+
     //slow down world update based on "slowdown" parameter
     if (timeStamp-lastUpdate>slowdown) {
         world.update();
@@ -89,9 +90,7 @@ function gameLoop(timeStamp) {
         world.draw();
         lastDraw=timeStamp;
     }
-    requestAnimationFrame(gameLoop);
 }
 
-
 //run game
-gameLoop();
+setInterval(gameLoop,0);
