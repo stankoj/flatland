@@ -110,6 +110,7 @@ var logger = new Logger();
 var lastUpdate=0;
 var lastDraw=0;
 var run=0;
+/*
 function gameLoop(timeStamp) {
 
         //update loop - run withing one frame time, and run within speed limit
@@ -126,6 +127,28 @@ function gameLoop(timeStamp) {
         lastDraw=timeStamp;
         run += speed;
         window.requestAnimationFrame(gameLoop);
+}
+
+window.requestAnimationFrame(gameLoop);
+*/
+var speedLimit=30;
+function gameLoop(timeStamp) {
+
+    //update loop - run withing one frame time of 1/60s
+    while (performance.now()-timeStamp<maxframeRate) {
+        if (performance.now()-lastUpdate>speedLimit) {
+            world.update();
+            logger.logUpdateTime(performance.now()-lastUpdate);
+            lastUpdate=performance.now();
+        }
+    }
+    //draw
+    logger.logFrameTime(timeStamp-lastDraw);
+    world.draw();
+    logger.draw();
+    lastDraw=timeStamp;
+    run += speed;
+    window.requestAnimationFrame(gameLoop);
 }
 
 window.requestAnimationFrame(gameLoop);
