@@ -65,32 +65,67 @@ class Being {
     };
 }
 
+class Logger {
+    constructor() {
+        this.frameTimes = [];
+        this.updateTimes= [];
+    }
+
+    logFrameTime(time) {
+        this.frameTimes.push(time);
+        this.frameTimes = this.frameTimes.slice("-100");
+    }
+
+    logUpdateTime(time) {
+        this.updateTimes.push(time);
+        this.updateTimes = this.updateTimes.slice("-100");
+    }
+
+    draw () {
+        let avgFrameRate = 1000/(this.frameTimes.reduce((partialSum, a) => partialSum + a, 0)/this.frameTimes.length);
+        let avgUpdateRate = 1000/(this.updateTimes.reduce((partialSum, a) => partialSum + a, 0)/this.updateTimes.length);
+
+        var frameRateDiv = document.getElementById("frameRate");
+        var updateRateDiv = document.getElementById("updateRate");
+
+        frameRateDiv.innerHTML = avgFrameRate;
+        updateRateDiv.innerHTML = avgUpdateRate;
+
+    };
+}
+
 //main
 const SQUARESIZE = 10;
-var slowdown = 500;
-var frameRate = 1000/60;
+var speed = 0.03;
+var maxframeRate = Math.floor(1000/60);
 
 //create world
 var world = new World();
 world.addSquare(new Being());
 
+//create logger
+var logger = new Logger();
+
 //game loop
 var lastUpdate=0;
 var lastDraw=0;
-function gameLoop() {
-    timeStamp = performance.now();
+var run=0;
+function gameLoop(timeStamp) {
 
-    //slow down world update based on "slowdown" parameter
-    if (timeStamp-lastUpdate>slowdown) {
-        world.update();
-        lastUpdate=timeStamp;
-    }
-    //draw only if frame rate time has passed
-    if (timeStamp-lastDraw>frameRate) {
+        //update loop - run withing one frame time, and run within speed limit
+        while (performance.now()-timeStamp<maxframeRate & run>1) {
+            world.update();
+            logger.logUpdateTime(performance.now()-lastUpdate);
+            lastUpdate=performance.now();
+            run--;
+        }
+        //draw
+        logger.logFrameTime(timeStamp-lastDraw);
         world.draw();
+        logger.draw();
         lastDraw=timeStamp;
-    }
+        run += speed;
+        window.requestAnimationFrame(gameLoop);
 }
 
-//run game
-setInterval(gameLoop,0);
+window.requestAnimationFrame(gameLoop);
