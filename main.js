@@ -131,7 +131,7 @@ function gameLoop(timeStamp) {
 
 window.requestAnimationFrame(gameLoop);
 */
-var speedLimit=30;
+var speedLimit=500;
 function gameLoop(timeStamp) {
 
     //update loop - run withing one frame time of 1/60s
