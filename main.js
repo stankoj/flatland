@@ -96,8 +96,7 @@ class Logger {
 
 //main
 const SQUARESIZE = 10;
-var speed = 0.03;
-var maxframeRate = Math.floor(1000/60);
+var frameRate = Math.floor(1000/60);
 
 //create world
 var world = new World();
@@ -109,34 +108,12 @@ var logger = new Logger();
 //game loop
 var lastUpdate=0;
 var lastDraw=0;
-var run=0;
-/*
+var waitTime=500;
 function gameLoop(timeStamp) {
-
-        //update loop - run withing one frame time, and run within speed limit
-        while (performance.now()-timeStamp<maxframeRate & run>1) {
-            world.update();
-            logger.logUpdateTime(performance.now()-lastUpdate);
-            lastUpdate=performance.now();
-            run--;
-        }
-        //draw
-        logger.logFrameTime(timeStamp-lastDraw);
-        world.draw();
-        logger.draw();
-        lastDraw=timeStamp;
-        run += speed;
-        window.requestAnimationFrame(gameLoop);
-}
-
-window.requestAnimationFrame(gameLoop);
-*/
-var speedLimit=500;
-function gameLoop(timeStamp) {
-
     //update loop - run withing one frame time of 1/60s
-    while (performance.now()-timeStamp<maxframeRate) {
-        if (performance.now()-lastUpdate>speedLimit) {
+    while (performance.now()-timeStamp<frameRate) {
+        //run if waitTime threshold reached
+        if (performance.now()-lastUpdate>waitTime) {
             world.update();
             logger.logUpdateTime(performance.now()-lastUpdate);
             lastUpdate=performance.now();
@@ -147,7 +124,6 @@ function gameLoop(timeStamp) {
     world.draw();
     logger.draw();
     lastDraw=timeStamp;
-    run += speed;
     window.requestAnimationFrame(gameLoop);
 }
 
