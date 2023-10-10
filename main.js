@@ -105,6 +105,30 @@ world.addSquare(new Being());
 //create logger
 var logger = new Logger();
 
+//webworker
+var w;
+
+function startWorker() {
+  if (typeof(Worker) !== "undefined") {
+    if (typeof(w) == "undefined") {
+      w = new Worker("webworker.js");
+    }
+    w.onmessage = function(event) {
+      console.log(event.data);
+    };
+  } else {
+    document.getElementById("result").innerHTML = "Sorry! No Web Worker support.";
+  }
+}
+
+function stopWorker() {
+  w.terminate();
+  w = undefined;
+}
+
+startWorker();
+
+
 //game loop
 var lastUpdate=0;
 var lastDraw=0;
