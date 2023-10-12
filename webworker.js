@@ -1,9 +1,6 @@
-var i = 0;
-
-function timedCount() {
-  i = i + 1;
-  postMessage(i);
-  setTimeout("timedCount()",500);
-}
-
-timedCount();
+function update() {
+    postMessage("");
+    setTimeout(update, 1000/60);
+ }
+ 
+ setTimeout(update, 1000/60);
