@@ -108,21 +108,24 @@ var logger = new Logger();
 //GAME loop
 var lastUpdate=0;
 var lastDraw=0;
-var waitTime=500;
-var speed=1/30;
+//var waitTime=500;
+var speed=1/60;
 var doUpdate=0;
 //UPDATE LOOP // webworker - the world update function works via a web worker because requestAnimationFeame stops when tab is not in focus.
 //some time may be lost because the update loop and the draw loop are not in sync. e.g. the update loop might finish running, and then wait for the next requestAnimationFrame window 
 var w = new Worker("webworker.js");
 w.onmessage = function(event) {
-    if (doUpdate>1) {
-        world.update();
-        logger.logUpdateTime(performance.now()-lastUpdate);
-        lastUpdate=performance.now();
-        doUpdate=0;
+    if (doUpdate<1) {
+        doUpdate+=speed;
     }
     else {
-        doUpdate+=speed;
+        while (Math.floor(doUpdate)>0) {
+            world.update();
+            doUpdate--;
+            logger.logUpdateTime(performance.now()-lastUpdate);
+            lastUpdate=performance.now();
+        }
+        doUpdate=speed;
     }
     /*
     var timeStamp = performance.now();
