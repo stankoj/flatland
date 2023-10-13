@@ -114,7 +114,7 @@ var waitTime=500;
 var w = new Worker("webworker.js");
 w.onmessage = function(event) {
     var timeStamp = performance.now();
-    while (performance.now()-timeStamp<frameRate-2) { //the -2 is to ensure the udate loop finishes within one time tick from the webworker 
+    while (performance.now()-timeStamp<frameRate-3) { //the -3 is to ensure the udate loop finishes within one time tick from the webworker 
         //run if waitTime threshold reached
         if (performance.now()-lastUpdate>waitTime) {
             world.update();
