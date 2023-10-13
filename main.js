@@ -105,16 +105,28 @@ world.addSquare(new Being());
 //create logger
 var logger = new Logger();
 
-//game loop
+//GAME loop
 var lastUpdate=0;
 var lastDraw=0;
 var waitTime=500;
+var speed=1/30;
+var doUpdate=0;
 //UPDATE LOOP // webworker - the world update function works via a web worker because requestAnimationFeame stops when tab is not in focus.
 //some time may be lost because the update loop and the draw loop are not in sync. e.g. the update loop might finish running, and then wait for the next requestAnimationFrame window 
 var w = new Worker("webworker.js");
 w.onmessage = function(event) {
+    if (doUpdate>1) {
+        world.update();
+        logger.logUpdateTime(performance.now()-lastUpdate);
+        lastUpdate=performance.now();
+        doUpdate=0;
+    }
+    else {
+        doUpdate+=speed;
+    }
+    /*
     var timeStamp = performance.now();
-    while (performance.now()-timeStamp<frameRate-3) { //the -3 is to ensure the udate loop finishes within one time tick from the webworker 
+    while (performance.now()-timeStamp<frameRate-3) { //the ugly -3 is to ensure the udate loop finishes within one time tick from the webworker 
         //run if waitTime threshold reached
         if (performance.now()-lastUpdate>waitTime) {
             world.update();
@@ -122,14 +134,15 @@ w.onmessage = function(event) {
             lastUpdate=performance.now();
         }
     }
+    */
   };
 //DRAWING LOOP // the drawing loop works via requestAnimationFrame
-function gameLoop(timeStamp) {
+function drawingLoop(timeStamp) {
     logger.logFrameTime(timeStamp-lastDraw);
     world.draw();
     logger.draw();
     lastDraw=timeStamp;
-    window.requestAnimationFrame(gameLoop);
+    window.requestAnimationFrame(drawingLoop);
 }
 
-window.requestAnimationFrame(gameLoop);
+window.requestAnimationFrame(drawingLoop);
