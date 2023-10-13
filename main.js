@@ -125,7 +125,7 @@ w.onmessage = function(event) {
             logger.logUpdateTime(performance.now()-lastUpdate);
             lastUpdate=performance.now();
         }
-        doUpdate=speed;
+        //doUpdate=speed;
     }
     /*
     var timeStamp = performance.now();
