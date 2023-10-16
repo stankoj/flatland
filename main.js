@@ -69,6 +69,7 @@ class Logger {
     constructor() {
         this.frameTimes = [];
         this.updateTimes= [];
+        this.updateCount= [];
     }
 
     logFrameTime(time) {
@@ -87,9 +88,11 @@ class Logger {
 
         var frameRateDiv = document.getElementById("frameRate");
         var updateRateDiv = document.getElementById("updateRate");
+        var updateCountDiv = document.getElementById("updateCount");
 
         frameRateDiv.innerHTML = avgFrameRate;
         updateRateDiv.innerHTML = avgUpdateRate;
+        updateCountDiv.innerHTML = this.updateCount;
 
     };
 }
@@ -106,15 +109,31 @@ world.addSquare(new Being());
 var logger = new Logger();
 
 //GAME loop
-var lastUpdate=0;
-var lastDraw=0;
+//var lastUpdate=0;  //for ver 1
+
+var lastDraw = 0;
 //var waitTime=500;
-var speed=1/60;
-var doUpdate=0;
+var speed = 1000/2; //updates per 1000 miliseconds
+var doUpdate = 0;
+var lastUpdate = 0;
+var lastUpdateCycle = 0;
 //UPDATE LOOP // webworker - the world update function works via a web worker because requestAnimationFeame stops when tab is not in focus.
 //some time may be lost because the update loop and the draw loop are not in sync. e.g. the update loop might finish running, and then wait for the next requestAnimationFrame window 
+//TODO: 1) make update loop do number of iterations depending on time elapsed, 2) make update loop stop if it takes more time than update tick (or do not start next loop if current one is still runing - e.g. use a global flag to determine that)
 var w = new Worker("webworker.js");
 w.onmessage = function(event) {
+    doUpdate += (performance.now()-lastUpdateCycle)/speed;
+    while (Math.floor(doUpdate>0)) {
+        world.update();
+        logger.logUpdateTime(performance.now()-lastUpdate);
+        logger.updateCount++;
+        lastUpdate = performance.now();
+        doUpdate--;
+    }
+    lastUpdateCycle = performance.now();
+    
+    //ver 2
+    /*
     if (doUpdate<1) {
         doUpdate+=speed;
     }
@@ -125,8 +144,10 @@ w.onmessage = function(event) {
             logger.logUpdateTime(performance.now()-lastUpdate);
             lastUpdate=performance.now();
         }
-        //doUpdate=speed;
+        doUpdate=speed;
     }
+    */
+    //ver 1
     /*
     var timeStamp = performance.now();
     while (performance.now()-timeStamp<frameRate-3) { //the ugly -3 is to ensure the udate loop finishes within one time tick from the webworker 
