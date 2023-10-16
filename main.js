@@ -99,7 +99,6 @@ class Logger {
 
 //main
 const SQUARESIZE = 10;
-var frameRate = Math.floor(1000/60);
 
 //create world
 var world = new World();
@@ -108,18 +107,13 @@ world.addSquare(new Being());
 //create logger
 var logger = new Logger();
 
-//GAME loop
-//var lastUpdate=0;  //for ver 1
-
+//GAME LOOP
 var lastDraw = 0;
-//var waitTime=500;
-var speed = 1000/2; //updates per 1000 miliseconds
+var speed = 1000/1; //updates per 1000 miliseconds
 var doUpdate = 0;
 var lastUpdate = 0;
 var lastUpdateCycle = 0;
 //UPDATE LOOP // webworker - the world update function works via a web worker because requestAnimationFeame stops when tab is not in focus.
-//some time may be lost because the update loop and the draw loop are not in sync. e.g. the update loop might finish running, and then wait for the next requestAnimationFrame window 
-//TODO: 1) make update loop do number of iterations depending on time elapsed, 2) make update loop stop if it takes more time than update tick (or do not start next loop if current one is still runing - e.g. use a global flag to determine that)
 var w = new Worker("webworker.js");
 w.onmessage = function(event) {
     doUpdate += (performance.now()-lastUpdateCycle)/speed;
@@ -130,35 +124,7 @@ w.onmessage = function(event) {
         lastUpdate = performance.now();
         doUpdate--;
     }
-    lastUpdateCycle = performance.now();
-    
-    //ver 2
-    /*
-    if (doUpdate<1) {
-        doUpdate+=speed;
-    }
-    else {
-        while (Math.floor(doUpdate)>0) {
-            world.update();
-            doUpdate--;
-            logger.logUpdateTime(performance.now()-lastUpdate);
-            lastUpdate=performance.now();
-        }
-        doUpdate=speed;
-    }
-    */
-    //ver 1
-    /*
-    var timeStamp = performance.now();
-    while (performance.now()-timeStamp<frameRate-3) { //the ugly -3 is to ensure the udate loop finishes within one time tick from the webworker 
-        //run if waitTime threshold reached
-        if (performance.now()-lastUpdate>waitTime) {
-            world.update();
-            logger.logUpdateTime(performance.now()-lastUpdate);
-            lastUpdate=performance.now();
-        }
-    }
-    */
+    lastUpdateCycle = performance.now();   
   };
 //DRAWING LOOP // the drawing loop works via requestAnimationFrame
 function drawingLoop(timeStamp) {
@@ -168,5 +134,4 @@ function drawingLoop(timeStamp) {
     lastDraw=timeStamp;
     window.requestAnimationFrame(drawingLoop);
 }
-
 window.requestAnimationFrame(drawingLoop);
