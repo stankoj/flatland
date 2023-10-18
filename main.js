@@ -4,15 +4,67 @@ class World {
         this.height = 30;
         this.width = 30;
         this.squares = [];
+        this.state=Array.from(new Array(this.height), () => new Array(this.width).fill())
+        this.nextState=[];
     }
 
     addSquare(square) {
         this.squares.push(square);
     };
 
+    generate() {
+        //generate terrain
+        for (let i = 0; i < this.height; i++) {
+            for (let j = 0; j < this.width; j++) {
+                this.state[i][j] = new Array();
+                this.state[i][j].push(new Earth());
+            };
+        };
+
+        //generate border
+        for (var i = 0; i < this.height; i++) {
+            for (var j = 0; j < this.width; j++) {
+                if (i == 0 || i == this.height-1 || j == 0 || j == this.width-1) {
+                    this.state[i][j].push(new Rock());
+                }
+            }
+        }
+
+        //generate solids
+
+        //generate grass
+        
+        var grassPercentage = 0.2;
+        var grassNumber = this.height * this.width * grassPercentage;
+        while (grassNumber > 0) {
+            var i = Math.floor(Math.random() * this.height);
+            var j = Math.floor(Math.random() * this.width);
+            if (this.state[i][j].length > 1) {
+                continue;
+            }
+            this.state[i][j].push(new Grass());
+            grassNumber--;
+        }
+        
+
+        //generate actors
+        
+        while (true) {
+            var i = Math.floor(Math.random() * this.height);
+            var j = Math.floor(Math.random() * this.width);
+            if (this.state[i][j].length > 1) {
+                continue;
+            }
+            this.state[i][j].push(new Robot());
+            break;
+        }
+        
+    }
+
+
     update() {
         for (var i = 0; i < this.squares.length; i++) {
-            let outputs=this.squares[i].calculateOutputs();
+            let outputs=this.squares[i].update();
             if (outputs["right"]) {
                 this.squares[i].x+=SQUARESIZE;
             }
@@ -26,32 +78,45 @@ class World {
                 this.squares[i].y-=SQUARESIZE;
             }
         }
-    };
+    }
 
     draw() {
         const canvas = document.getElementById("flatland");
         const ctx = canvas.getContext("2d");
         ctx.clearRect(0, 0, canvas.width, canvas.height);
-        for (var i = 0; i < this.squares.length; i++) {
-            ctx.beginPath();
-            ctx.rect(this.squares[i].x, this.squares[i].y, this.squares[i].width, this.squares[i].height);
-            ctx.fillStyle = this.squares[i].color;
-            ctx.fill();
-            ctx.closePath();
+        for (var i = 0; i < this.height; i++) {
+            for (var j = 0; j < this.width; j++) {
+                // determine which object to draw at top
+                var max=-1;
+                var objectToDraw;
+                for (var x = 0; x < this.state[i][j].length; x++){
+                    if (this.state[i][j][x].z > max) {
+                        objectToDraw = this.state[i][j][x];
+                    }
+                }
+                // draw object
+                ctx.beginPath();
+                ctx.rect(i * SQUARESIZE, j * SQUARESIZE, objectToDraw.width, objectToDraw.height);
+                ctx.fillStyle = objectToDraw.color;
+                ctx.fill();
+                ctx.closePath();
+            }
         }
-    };
+    }
   }
 
-class Being {
-    constructor() {
+class Robot {
+    constructor(x,y) {
+        this.type="actor";
         this.width=SQUARESIZE;
         this.height=SQUARESIZE;
-        this.x=50;
-        this.y=50;
+        this.x=x;
+        this.y=y;
+        this.z=2;
         this.color="red";
     }
     getInputs() {};
-    calculateOutputs() {
+    update() {
         var outputs = {
             "up": null,
             "down": null,
@@ -62,7 +127,41 @@ class Being {
             outputs[key] = Math.random() < 0.5;
           }
         return outputs;
-    };
+    }
+}
+
+class Rock {
+    constructor() {
+        this.type="solid";
+        this.width=SQUARESIZE;
+        this.height=SQUARESIZE;
+        this.z=1;
+        this.color="gray";
+    }
+}
+
+class Grass {
+    constructor(x,y) {
+        this.type="item";
+        this.width=SQUARESIZE;
+        this.height=SQUARESIZE;
+        this.x=x;
+        this.y=y;
+        this.z=1;
+        this.color="green";
+    }
+}
+
+class Earth {
+    constructor(x,y) {
+        this.type="terrain";
+        this.width=SQUARESIZE;
+        this.height=SQUARESIZE;
+        this.x=x;
+        this.y=y;
+        this.z=0;
+        this.color="brown";
+    }
 }
 
 class Logger {
@@ -102,7 +201,9 @@ const SQUARESIZE = 10;
 
 //create world
 var world = new World();
-world.addSquare(new Being());
+world.generate();
+world.draw();
+//world.addSquare(new Robot(50,50));
 
 //create logger
 var logger = new Logger();
