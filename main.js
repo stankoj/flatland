@@ -5,7 +5,6 @@ class World {
         this.width = 30;
         this.squares = [];
         this.state=Array.from(new Array(this.height), () => new Array(this.width).fill())
-        this.nextState=[];
     }
 
     addSquare(square) {
@@ -34,7 +33,7 @@ class World {
 
         //generate grass
         
-        var grassPercentage = 0.2;
+        var grassPercentage = 0.1;
         var grassNumber = this.height * this.width * grassPercentage;
         while (grassNumber > 0) {
             var i = Math.floor(Math.random() * this.height);
@@ -63,21 +62,77 @@ class World {
 
 
     update() {
-        for (var i = 0; i < this.squares.length; i++) {
-            let outputs=this.squares[i].update();
-            if (outputs["right"]) {
-                this.squares[i].x+=SQUARESIZE;
-            }
-            if (outputs["left"]) {
-                this.squares[i].x-=SQUARESIZE;
-            }
-            if (outputs["up"]) {
-                this.squares[i].y+=SQUARESIZE;
-            }
-            if (outputs["down"]) {
-                this.squares[i].y-=SQUARESIZE;
+
+        // collect objects that need to be updated and calculate next action on them
+        var actions = [];
+        for (let i = 0; i < this.height; i++) {
+            for (let j = 0; j < this.width; j++) {
+                for (let k = 0; k < this.state[i][j].length; k++)
+                    if (typeof this.state[i][j][k].update == 'function') {
+                        let outputs=this.state[i][j][k].update();
+                        var x = i;
+                        var y = j; 
+                        if (outputs["right"]) {
+                            x+=1;
+                        }
+                        if (outputs["left"]) {
+                            x-=1;
+                        }
+                        if (outputs["up"]) {
+                            y-=1;
+                        }
+                        if (outputs["down"]) {
+                            y+=1;
+                        }
+                        actions.push({"object":this.state[i][j][k],"currentLocation":[i,j],"nextLocation":[x,y],"conflict":false});
+                    }
+            };
+        };
+
+        // resolve conflict on all objects and flag invalid actions
+        var runConflictLoop = true;
+        while (runConflictLoop) {
+            runConflictLoop = false;
+            for (let i = 0; i < actions.length; i++) {
+                // do not check if action already marked as conflicting in previous loop iterations 
+                if (actions[i]["conflict"]==true) {
+                    continue;
+                }
+                // check if any other object is planning the move to same field
+                for (let j = 0; j < actions.length; j++) {
+                    if (i == j) {
+                        continue;
+                    }
+                    if (JSON.stringify(actions[i]["nextLocation"]) == JSON.stringify(actions[j]["nextLocation"])) {
+                        actions[i]["conflict"]=true;
+                        actions[j]["conflict"]=true;
+                        runConflictLoop = true;
+                        break;
+                    }
+                }
+                // check what is already present on that field
+                var newField = this.state[actions[i]["nextLocation"][0]][actions[i]["nextLocation"][1]];
+                for (let j = 0; j < newField.length; j++) {
+                    if (newField[j].type == "actor" || newField[j].type == "solid") {
+                        actions[i]["conflict"]=true;
+                        runConflictLoop = true;
+                        break;
+                    }
+                }
             }
         }
+
+        // apply changes for all objects in world state
+        for (let i = 0; i < actions.length; i++) {
+            if (actions[i]["conflict"] == false) {
+                var newField = this.state[actions[i]["nextLocation"][0]][actions[i]["nextLocation"][1]];
+                newField.push(actions[i]["object"]);
+                var oldField = this.state[actions[i]["currentLocation"][0]][actions[i]["currentLocation"][1]];
+                this.state[actions[i]["currentLocation"][0]][actions[i]["currentLocation"][1]] = oldField.filter(e => e!=actions[i]["object"])
+                //oldField.splice(actions[i]["object"],1);
+            }
+        }
+
     }
 
     draw() {
@@ -106,14 +161,14 @@ class World {
   }
 
 class Robot {
-    constructor(x,y) {
+    constructor() {
         this.type="actor";
         this.width=SQUARESIZE;
         this.height=SQUARESIZE;
-        this.x=x;
-        this.y=y;
         this.z=2;
         this.color="red";
+        this.life=100;
+        this.age=0;
     }
     getInputs() {};
     update() {
@@ -141,24 +196,20 @@ class Rock {
 }
 
 class Grass {
-    constructor(x,y) {
+    constructor() {
         this.type="item";
         this.width=SQUARESIZE;
         this.height=SQUARESIZE;
-        this.x=x;
-        this.y=y;
         this.z=1;
         this.color="green";
     }
 }
 
 class Earth {
-    constructor(x,y) {
+    constructor() {
         this.type="terrain";
         this.width=SQUARESIZE;
         this.height=SQUARESIZE;
-        this.x=x;
-        this.y=y;
         this.z=0;
         this.color="brown";
     }
@@ -210,7 +261,7 @@ var logger = new Logger();
 
 //GAME LOOP
 var lastDraw = 0;
-var speed = 1000/1; //updates per 1000 miliseconds
+var speed = 1000/10; //updates per 1000 miliseconds
 var doUpdate = 0;
 var lastUpdate = 0;
 var lastUpdateCycle = 0;
