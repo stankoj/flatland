@@ -17,7 +17,7 @@ var config = {
 "worldHeight" : 30,
 "worldWidth" : 30,
 "grassPercentange" : 0.1,
-"speed" : 1000/2,
+"speed" : 1000/100,
 "squareSize" : 10
 }
 
