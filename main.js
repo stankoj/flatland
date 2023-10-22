@@ -5,11 +5,40 @@ class World {
         this.width = 30;
         this.squares = [];
         this.state=Array.from(new Array(this.height), () => new Array(this.width).fill())
+        //stats
+        this.life = 0;
+        this.age = 0;
+        this.maxAge = 0;
+        this.grassPercentage = 0.1;
     }
 
     addSquare(square) {
         this.squares.push(square);
     };
+
+    addActor(state) {
+        while (true) {
+            var i = Math.floor(Math.random() * this.height);
+            var j = Math.floor(Math.random() * this.width);
+            if (state[i][j].length > 1) {
+                continue;
+            }
+            state[i][j].push(new Robot());
+            break;
+        }
+    }
+
+    addGrass(state) {
+        while (true) {
+            var i = Math.floor(Math.random() * this.height);
+            var j = Math.floor(Math.random() * this.width);
+            if (this.state[i][j].length > 1) {
+                continue;
+            }
+            state[i][j].push(new Grass());
+            break;
+        }
+    }
 
     generate() {
         //generate terrain
@@ -32,32 +61,14 @@ class World {
         //generate solids
 
         //generate grass
-        
-        var grassPercentage = 0.1;
-        var grassNumber = this.height * this.width * grassPercentage;
+        var grassNumber = this.height * this.width * this.grassPercentage;
         while (grassNumber > 0) {
-            var i = Math.floor(Math.random() * this.height);
-            var j = Math.floor(Math.random() * this.width);
-            if (this.state[i][j].length > 1) {
-                continue;
-            }
-            this.state[i][j].push(new Grass());
+            this.addGrass(this.state);
             grassNumber--;
         }
-        
 
         //generate actors
-        
-        while (true) {
-            var i = Math.floor(Math.random() * this.height);
-            var j = Math.floor(Math.random() * this.width);
-            if (this.state[i][j].length > 1) {
-                continue;
-            }
-            this.state[i][j].push(new Robot());
-            break;
-        }
-        
+        this.addActor(this.state);
     }
 
 
@@ -68,7 +79,7 @@ class World {
         for (let i = 0; i < this.height; i++) {
             for (let j = 0; j < this.width; j++) {
                 for (let k = 0; k < this.state[i][j].length; k++)
-                    if (typeof this.state[i][j][k].update == 'function') {
+                    if (this.state[i][j][k].type == "actor") {
                         let outputs=this.state[i][j][k].update();
                         var x = i;
                         var y = j; 
@@ -133,9 +144,52 @@ class World {
             }
         }
 
+        // process items
+        //TODO: move thins into the actor calss - pass item to actor method and make it update itself. But removing the item from the world still needs to be done here
+        for (let i = 0; i < actions.length; i++) {
+            if (actions[i]["conflict"] == false) {
+                var currentField = this.state[actions[i]["nextLocation"][0]][actions[i]["nextLocation"][1]];
+                for (var j = 0; j < currentField.length; j++) {
+                    if (currentField[j].type == "item") {
+                        //remove item
+                        this.state[actions[i]["nextLocation"][0]][actions[i]["nextLocation"][1]] = currentField.filter(e => e!=currentField[j])
+                        //add new item
+                        this.addGrass(this.state);
+                        //update actor stats
+                        actions[i]["object"].life = Math.min(100, actions[i]["object"].life+10);
+                    }
+                }
+            }
+        }
+
+        //remove dead actors and add new ones
+        for (let i = 0; i < actions.length; i++) {
+            if (actions[i]["conflict"] == false) {
+                var currentField = this.state[actions[i]["nextLocation"][0]][actions[i]["nextLocation"][1]];
+                if (actions[i]["object"].life <= 0) {
+                    //remove actor
+                    this.state[actions[i]["nextLocation"][0]][actions[i]["nextLocation"][1]] = currentField.filter(e => e!=actions[i]["object"]);
+                    //add new one
+                    this.addActor(this.state);
+                }
+            }
+        }
+
+        // update stats
+        for (var i = 0; i < actions.length; i++) {
+            if (actions[i]["object"].selected) {
+                this.life = actions[i]["object"].life;
+                this.age = actions[i]["object"].age;
+                if (this.age > this.maxAge) {
+                    this.maxAge = this.age;
+                }
+            }
+        }
+
     }
 
     draw() {
+        // draw world
         const canvas = document.getElementById("flatland");
         const ctx = canvas.getContext("2d");
         ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -157,21 +211,32 @@ class World {
                 ctx.closePath();
             }
         }
+
+        //draw UI
+        var updateLife = document.getElementById("life");
+        var updateAge = document.getElementById("age");
+        var updateMaxAge = document.getElementById("maxAge");
+        updateLife.innerHTML = this.life;
+        updateAge.innerHTML = this.age;
+        updateMaxAge.innerHTML = this.maxAge;
     }
   }
 
 class Robot {
     constructor() {
-        this.type="actor";
-        this.width=SQUARESIZE;
-        this.height=SQUARESIZE;
-        this.z=2;
-        this.color="red";
-        this.life=100;
-        this.age=0;
+        this.type = "actor";
+        this.width = SQUARESIZE;
+        this.height = SQUARESIZE;
+        this.z = 2;
+        this.color = "red";
+        this.life = 100;
+        this.age = 0;
+        this.selected = true;
     }
     getInputs() {};
     update() {
+        this.life--;
+        this.age++;
         var outputs = {
             "up": null,
             "down": null,
@@ -221,7 +286,6 @@ class Logger {
         this.updateTimes= [];
         this.updateCount= [];
     }
-
     logFrameTime(time) {
         this.frameTimes.push(time);
         this.frameTimes = this.frameTimes.slice("-100");
@@ -240,10 +304,10 @@ class Logger {
         var updateRateDiv = document.getElementById("updateRate");
         var updateCountDiv = document.getElementById("updateCount");
 
+
         frameRateDiv.innerHTML = avgFrameRate;
         updateRateDiv.innerHTML = avgUpdateRate;
         updateCountDiv.innerHTML = this.updateCount;
-
     };
 }
 
@@ -261,7 +325,7 @@ var logger = new Logger();
 
 //GAME LOOP
 var lastDraw = 0;
-var speed = 1000/10; //updates per 1000 miliseconds
+var speed = 1000/100; //updates per 1000 miliseconds
 var doUpdate = 0;
 var lastUpdate = 0;
 var lastUpdateCycle = 0;
