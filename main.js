@@ -6,7 +6,7 @@
 //   | |    | |____ / ____ \| |  | |____ / ____ \| |\  | |__| |    //
 //   |_|    |______/_/    \_\_|  |______/_/    \_\_| \_|_____/     //
 //                                                                 //
-//   stanko.jankovic@live.com                                      //
+//   github.com/stankoj/flatland           twitter.com/stankoja    //
 //                                                                 //
 /////////////////////////////////////////////////////////////////////
 
@@ -17,7 +17,7 @@ var config = {
 "worldHeight" : 30,
 "worldWidth" : 30,
 "grassPercentange" : 0.1,
-"speed" : 1000/100,
+"speed" : 1000/10,
 "squareSize" : 10
 }
 
@@ -40,7 +40,7 @@ class World {
     }
 
     // Function to add a new element to the world
-    addSquare(state, Class, x = "random", y = "random") {
+    addSquare(state, Class, options, x = "random", y = "random") {
         if (x == "random" || y == "random") {
             x = Math.floor(Math.random() * this.width);
             y = Math.floor(Math.random() * this.height);
@@ -48,7 +48,7 @@ class World {
         if (state[x][y].length > 1) {
             return false;
         }
-        state[x][y].push(new Class());
+        state[x][y].push(new Class(options));
         return true;
     }
 
@@ -79,7 +79,7 @@ class World {
         }
 
         // Generate actors
-        while (!this.addSquare(this.state, Robot));
+        while (!this.addSquare(this.state, Robot, {"algorithm":"random"}));
     }
 
     // Function to update the world state for one timestep
@@ -90,7 +90,7 @@ class World {
             for (let j = 0; j < this.width; j++) {
                 for (let k = 0; k < this.state[i][j].length; k++)
                     if (this.state[i][j][k].type == "actor") {
-                        let outputs=this.state[i][j][k].update();
+                        let outputs=this.state[i][j][k].update(i, j, this.state);
                         var x = i;
                         var y = j; 
                         if (outputs["right"]) {
@@ -191,7 +191,7 @@ class World {
                     this.state[location[0]][location[1]] = currentField.filter(e => e!=actions[i]["object"]);
                     
                     // Add new one
-                    while (!this.addSquare(this.state, Robot));
+                    while (!this.addSquare(this.state, Robot, {"algorithm":"random"}));
                 }
             }
         }
@@ -246,7 +246,7 @@ class World {
 
 // The robot class that represents an actor with a hardcoded behavior algorithm
 class Robot {
-    constructor() {
+    constructor(options={"algorithm":"random"}) {
         this.type = "actor";
         this.width = config.squareSize;
         this.height = config.squareSize;
@@ -255,23 +255,88 @@ class Robot {
         this.life = 100;
         this.age = 0;
         this.selected = true;
+        this.algorithm = options.algorithm;
+        this.vision = 5;
     }
 
     getInputs() {};
 
-    update() {
+    update(x, y, state) {
         this.life--;
         this.age++;
         var outputs = {
-            "up": null,
-            "down": null,
-            "left":null,
-            "right":null
+            "up": 0,
+            "down": 0,
+            "left": 0,
+            "right": 0
           };
-        for(var key in outputs) {
-            outputs[key] = Math.random() < 0.5;
-          }
-        return outputs;
+
+        if (this.algorithm == "random") {
+            for(var key in outputs) {
+                outputs[key] = Math.random() < 0.5;
+            }
+            return outputs;
+        }
+        if (this.algorithm == "smart") {
+            // Check in which direction there are most grass blocks
+            for (var i = x-this.vision; i <= x+this.vision; i++) {
+                for (var j = y-this.vision; j <= y+this.vision; j++) {
+                    if (i < 0 || i > config.worldWidth-1 || j < 0 || j > config.worldHeight-1) {
+                        continue;
+                    }
+                    for (var k = 0; k < state[i][j].length; k++) {
+                        if (state[i][j][k].constructor.name == "Grass") {
+                            if (i < x) {
+                                outputs.left++;
+                            }
+                            if (i > x) {
+                                outputs.right++;
+                            }
+                            if (j < y) {
+                                outputs.up++;
+                            }
+                            if (j > y) {
+                                outputs.down++;
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Decide which direction to go
+            var decision = false;
+            for(var key in outputs) {
+                for (var otherKey in outputs) {
+                    decision = key;
+                    if (key == otherKey) {
+                        continue;
+                    }
+                    if (outputs[key] <= outputs[otherKey]) {
+                        decision = false;
+                        break
+                    }
+                }
+                if (decision) {
+                    break;
+                }
+            }
+
+            // Set direction
+            for(var key in outputs) {
+                if (decision) {
+                    if (decision == key) {
+                        outputs[key] = 1;
+                    }
+                    else {
+                        outputs[key] = 0;
+                    }
+                }
+                else {
+                    outputs[key] = Math.random() < 0.5;
+                }
+            }
+            return outputs;
+        }        
     }
 
     processItem(Item) {
