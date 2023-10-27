@@ -45,9 +45,13 @@ class World {
             x = Math.floor(Math.random() * this.width);
             y = Math.floor(Math.random() * this.height);
         }
+
+        // Check if something is already present there except terrain
         if (state[x][y].length > 1) {
             return false;
         }
+
+        // Create square
         state[x][y].push(new Class(options));
         return true;
     }
@@ -376,6 +380,110 @@ class Earth {
         this.height=config.squareSize;
         this.z=0;
         this.color="brown";
+    }
+}
+
+// Neuron class
+class Neuron {
+    constructor(activationFunction) {
+        this.activationFunction = activationFunction;
+        this.inputs = []; // Array of primitive input values
+        this.connections = []; // Output links to other neurons
+    }
+
+    update() {
+        // Calculate output
+        inputSum = this.inputs.reduce((a,b)=>a+b);
+        var output = activationFunction(inputSum);
+
+        // Clear own inputs
+        this.inputs = [];
+
+        // Set inputs of connected neurons
+        for (var i = 0; i < this.connections.length; i++) {
+            this.connections[i].inputs.push(output*this.connections[i].weight);
+        }
+    }
+}
+
+// Neuron connection
+class Connection {
+    constructor() {
+        this.weight;
+        this.connectedTo;
+    }
+}
+
+// The Brain
+class Brain {
+    constructor(width, height, inputs, outputs) {
+        this.width = width;
+        this.height = height;
+        this.inputs = inputs;
+        this.output = outputs;
+        this.inputNeurons = [];
+        this.internalNeurons=Array.from(new Array(this.height), () => new Array(this.width).fill())
+        this.outputNeurons = [];
+
+        // Create input neurons
+        var inputNeuronActivationFunction = function (a) {return a;}
+        for (var i = 0; i < inputs; i++) {
+            this.inputNeurons.push(new Neuron(inputNeuronActivationFunction));
+        }
+
+        // Create internal neurons
+        var internalNeuronActivationFunction =  function sigmoid(z) { return 1 / (1 + Math.exp(-z)); }
+        for (var i=0; i < this.height; i++) {
+            for (var j=0; j < this.width; j++)
+                internalNeurons[i][j] = new Neuron(internalNeuronActivationFunction);
+        }
+
+        // Create output neurons
+        var outputNeuronActivationFunction = function (a) {return a;}
+        for (var i = 0; i < outputs; i++) {
+            this.outputNeurons.push(new Neuron(outputNeuronActivationFunction));
+        }
+    }
+
+    addNeuron(x, y, Neuron) {
+
+    }
+
+    addConnection(from, to) {
+
+    }
+
+    mutateNeuron(Neuron) {
+
+    }
+
+    mutateConnection(Connection) {
+
+    }
+
+    update(inputs) {
+        // Add inputs to input enurons
+        for (var i=0; i < this.inputNeurons.length; i++) {
+            this.inputNeurons[i].inputs.push(inputs[i]);
+            this.inputNeurons[i].update();
+        }
+
+        // Update each internal neuron
+        for (var i=0; i < this.height; i++) {
+            for (var j=0; j < this.width; j++)
+                if (internalNeurons[i][j].length == 0) {
+                    continue;
+                }
+                internalNeurons[i][j].update();
+        }
+
+        // Calculate outputs
+        var outputs;
+        for (var i=0; i < this.outputNeurons.length; i++) {
+            outputs.push(this.outputNeurons[i].inputs.reduce((a,b)=>a+b));
+            this.outputNeurons[i].inputs = [];
+        }
+        return outputs;
     }
 }
 
