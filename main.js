@@ -11,7 +11,7 @@
 /////////////////////////////////////////////////////////////////////
 
 
-// Globsl config
+// Global config
 
 var config = {
 "worldHeight" : 30,
@@ -383,12 +383,46 @@ class Earth {
     }
 }
 
+// Creature with a brain
+class Creature {
+    constructor(brain = false) {
+        this.type = "actor";
+        this.width = config.squareSize;
+        this.height = config.squareSize;
+        this.z = 2;
+        this.color = "purple";
+        this.life = 100;
+        this.age = 0;
+        this.selected = true;
+        this.vision = 5;
+        this.outputs = 4;
+        this.brain = new Brain(brain, vision, outputs);
+    }
+
+    // Obtain input values from vision
+
+    // Update creature
+
+    // Die
+    die() {
+        return this.brain.export();
+    }
+
+}
+
 // Neuron class
 class Neuron {
-    constructor(activationFunction) {
-        this.activationFunction = activationFunction;
+    constructor(activationFunctionName, type) {
+        this.activationFunctions = { 
+            noActivationFunction: function (a) {return a;},
+            sigmoidActivationFunction: function sigmoid(z) { return 1 / (1 + Math.exp(-z)); }
+        }
+        this.activationFunction = activationFunctions[activationFunctionName]; // Activation function code
+        this.activationFunctionName = activationFunctionName; // Name of activation function, used for export/import
         this.inputs = []; // Array of primitive input values
-        this.connections = []; // Output links to other neurons
+        this.inputConnections = []; // Input links from other neurons
+        this.outputConnections = []; // Output links to other neurons
+        this.type = type; // input, output, internal
     }
 
     update() {
@@ -400,49 +434,120 @@ class Neuron {
         this.inputs = [];
 
         // Set inputs of connected neurons
-        for (var i = 0; i < this.connections.length; i++) {
-            this.connections[i].inputs.push(output*this.connections[i].weight);
+        for (var i = 0; i < this.outputConnections.length; i++) {
+            this.outputConnections[i].inputs.push(output*this.outputConnections[i].weight);
         }
     }
 }
 
 // Neuron connection
 class Connection {
-    constructor() {
-        this.weight;
-        this.connectedTo;
+    constructor(weight, connectedTo) {
+        this.weight = weight;
+        this.connectedTo = connectedTo;
     }
 }
 
 // The Brain
 class Brain {
-    constructor(width, height, inputs, outputs) {
-        this.width = width;
-        this.height = height;
+    constructor(brain, inputs, outputs) {
         this.inputs = inputs;
         this.output = outputs;
         this.inputNeurons = [];
-        this.internalNeurons=Array.from(new Array(this.height), () => new Array(this.width).fill())
+        this.internalNeurons=[];
         this.outputNeurons = [];
 
-        // Create input neurons
-        var inputNeuronActivationFunction = function (a) {return a;}
-        for (var i = 0; i < inputs; i++) {
-            this.inputNeurons.push(new Neuron(inputNeuronActivationFunction));
+        // If building brain from scratch
+        if (!brain) {
+            // Create input neurons
+            var inputNeuronActivationFunction = this.noActivationFunction;
+            for (var i = 0; i < inputs; i++) {
+                this.inputNeurons.push(new Neuron("noActivationFunction", "input"));
+            }
+            
+            // Create output neurons
+            var outputNeuronActivationFunction = this.noActivationFunction
+            for (var i = 0; i < outputs; i++) {
+                this.outputNeurons.push(new Neuron("noActivationFunction", "input"));
+            }
         }
 
-        // Create internal neurons
-        var internalNeuronActivationFunction =  function sigmoid(z) { return 1 / (1 + Math.exp(-z)); }
-        for (var i=0; i < this.height; i++) {
-            for (var j=0; j < this.width; j++)
-                internalNeurons[i][j] = new Neuron(internalNeuronActivationFunction);
+        // If importing existing brain
+        else {
+            brain = JSON.parse(brain);
+
+            // Import neurons
+            for (var i = 0; i < brain.length; i++) {
+                if (brain[i].type == "input") {
+                    var target = this.inputNeurons;
+                }
+                else if (brain[i].type == "output") {
+                    var target = this.outputNeurons;
+                }
+                else if (brain[i].type == "internal") {
+                    var target = this.internalNeurons;
+                }
+                target.push(new Neuron(brain[i].activationFunctionName, brain[i].type));
+            }
+            
+            // Import connections
+            for (var i = 0; i < brain.length; i++) {
+                for (var j = 0; j < brain[i]["connections"].length; j++) {
+                    if (brain[i].type == "input") {
+                        var target = this.inputNeurons;
+                        var offset = 0; // Offset is used because the exported brain has all neurons in one array, but we have to import them into separate arrays for input/output/internal
+                    }
+                    else if (brain[i].type == "output") {
+                        var target = this.outputNeurons;
+                        var offset = his.inputNeurons.length;
+                    }
+                    else if (brain[i].type == "internal") {
+                        var target = this.internalNeurons;
+                        var offset = this.inputNeurons.length + this.outputNeurons.length;
+                    }
+                    if (brain[i]["connections"][j].type == "input") {
+                        var connectedTo = this.inputNeurons;
+                        var connectedToOffset = 0;
+                    }
+                    else if (brain[i]["connections"][j].type == "output") {
+                        var connectedTo = this.outputNeurons;
+                        var connectedToOffset = his.inputNeurons.length;
+                    }
+                    else if (brain[i]["connections"][j].type == "internal") {
+                        var connectedTo = this.internalNeurons;
+                        var connectedToOffset = this.inputNeurons.length + this.outputNeurons.length;
+                    }
+                    target[i-offset]["connections"].push(new Connection(brain[i]["connections"][j].weight, connectedTo[brain[i]["connections"][j].to-connectedToOffset]));
+                }
+            }
+
         }
 
-        // Create output neurons
-        var outputNeuronActivationFunction = function (a) {return a;}
-        for (var i = 0; i < outputs; i++) {
-            this.outputNeurons.push(new Neuron(outputNeuronActivationFunction));
+        // Mutate brain
+
+    }
+
+    // Export brain
+    export() {
+        var brain = {};
+        var neurons = this.inputNeurons.concat(this.outputNeurons, this.internalNeurons);
+
+        // Export neurons
+        for (var i = 0; i < neurons.length; i++) {
+            // Export neuron
+            brain.push({"activationFunctionName":neurons[i].activationFunctionName, "type":neurons[i].type, "connections":[]});
+
+            // Export connections of neuron
+            for (var j = 0; j < neurons[i].outputConnections.length; j++) {
+                var weight = neurons[i].outputConnections[j].weight;
+                var from = i;
+                var to = neurons.findIndex(x => x === neurons[i].outputConnections[j].connectedTo);
+                brain[i][connections].push({"weight":weight, "from":from, "to":to });
+            }
         }
+
+        return JSON.stringify(brain);
+    
     }
 
     addNeuron(x, y, Neuron) {
@@ -453,11 +558,11 @@ class Brain {
 
     }
 
-    mutateNeuron(Neuron) {
+    removeNeuron(Neuron) {
 
     }
 
-    mutateConnection(Connection) {
+    removeConnection(Connection) {
 
     }
 
