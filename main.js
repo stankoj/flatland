@@ -476,6 +476,31 @@ class Brain {
         else {
             brain = JSON.parse(brain);
 
+            var allNeurons = [];
+
+            // Import neurons
+            for (var i = 0; i < brain.length; i++) {
+                allNeurons.push(new Neuron(brain[i].activationFunctionName, brain[i].type));
+
+                if (allNeurons[i].type == "input") {
+                    this.inputNeurons.push(allNeurons[i]);
+                }
+                else if (allNeurons[i].type == "output") {
+                    this.outputNeurons.push(allNeurons[i]);
+                }
+                else if (allNeurons[i].type == "internal") {
+                    this.internalNeurons.push(allNeurons[i]);
+                }
+            }
+
+            // Import connections
+            for (var i = 0; i < brain.length; i++) {
+                for (var j = 0; j < brain[i]["connections"].length; j++) {
+                    allNeurons[i][outputConnections].push(new Connection(brain[i]["connections"][j].weight, allNeurons[brain[i]["connections"][j].to]));
+                }
+            }
+
+            /*
             // Import neurons
             for (var i = 0; i < brain.length; i++) {
                 if (brain[i].type == "input") {
@@ -521,9 +546,12 @@ class Brain {
                 }
             }
 
+        */
+        
         }
-
+        
         // Mutate brain
+        mutate();
 
     }
 
@@ -548,6 +576,11 @@ class Brain {
 
         return JSON.stringify(brain);
     
+    }
+
+    // Mutate brain
+    mutate() {
+        
     }
 
     addNeuron(x, y, Neuron) {
