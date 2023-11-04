@@ -17,7 +17,7 @@ var config = {
 "worldHeight" : 30,
 "worldWidth" : 30,
 "grassPercentange" : 0.1,
-"speed" : 1000/10,
+"speed" : 1000/5000,
 "squareSize" : 10
 }
 
@@ -83,7 +83,8 @@ class World {
         }
 
         // Generate actors
-        while (!this.addSquare(this.state, Robot, {"algorithm":"random"}));
+        //while (!this.addSquare(this.state, Robot, {"algorithm":"random"}));
+        while (!this.addSquare(this.state, Creature));
     }
 
     // Function to update the world state for one timestep
@@ -158,7 +159,7 @@ class World {
                 // Remove actor from old filed
                 var oldLocation = actions[i]["currentLocation"];
                 var oldField = this.state[oldLocation[0]][oldLocation[1]];
-                this.state[oldLocation[0]][oldLocation[1]] = oldField.filter(e => e!=actions[i]["object"])
+                this.state[oldLocation[0]][oldLocation[1]] = oldField.filter(e => e!=actions[i]["object"]);
             }
         }
 
@@ -187,16 +188,17 @@ class World {
 
         // Remove dead actors and add new ones
         for (let i = 0; i < actions.length; i++) {
-            if (actions[i]["conflict"] == false) {
-                var location = actions[i]["newLocation"];
-                var currentField = this.state[location[0]][location[1]];
-                if (actions[i]["object"].life <= 0) {
-                    // Remove actor
-                    this.state[location[0]][location[1]] = currentField.filter(e => e!=actions[i]["object"]);
-                    
-                    // Add new one
-                    while (!this.addSquare(this.state, Robot, {"algorithm":"random"}));
-                }
+            var location = actions[i]["newLocation"];
+            var currentField = this.state[location[0]][location[1]];
+            if (actions[i]["object"].life <= 0) {
+                // Remove actor
+                var brain = actions[i]["object"].brain.export();
+                this.state[location[0]][location[1]] = currentField.filter(e => e!=actions[i]["object"]);
+
+                // Add new one
+                // TODO: import brain that performed best so far, not just last brain
+                //while (!this.addSquare(this.state, Robot, {"algorithm":"random"}));
+                while (!this.addSquare(this.state, Creature, {"brain":brain}));
             }
         }
 
@@ -255,7 +257,7 @@ class Robot {
         this.width = config.squareSize;
         this.height = config.squareSize;
         this.z = 2;
-        this.color = "red";
+        this.color = "#FF0000";
         this.life = 100;
         this.age = 0;
         this.selected = true;
@@ -357,7 +359,7 @@ class Rock {
         this.width=config.squareSize;
         this.height=config.squareSize;
         this.z=1;
-        this.color="gray";
+        this.color="#666666";
     }
 }
 
@@ -368,7 +370,7 @@ class Grass {
         this.width=config.squareSize;
         this.height=config.squareSize;
         this.z=1;
-        this.color="green";
+        this.color="#009900";
     }
 }
 
@@ -379,33 +381,67 @@ class Earth {
         this.width=config.squareSize;
         this.height=config.squareSize;
         this.z=0;
-        this.color="brown";
+        this.color="#991111";
     }
 }
 
 // Creature with a brain
 class Creature {
-    constructor(brain = false) {
+    constructor(options={"brain":false}) {
         this.type = "actor";
         this.width = config.squareSize;
         this.height = config.squareSize;
         this.z = 2;
-        this.color = "purple";
+        this.color = "#660066";
         this.life = 100;
         this.age = 0;
         this.selected = true;
         this.vision = 5;
         this.outputs = 4;
-        this.brain = new Brain(brain, vision, outputs);
+        this.brain = new Brain(options.brain, this.vision*this.vision, this.outputs); // If vision is changed to 3 colors, the input tensor should be vision*vision*3
     }
 
-    // Obtain input values from vision
-
     // Update creature
+    update(x, y, state) {
+        this.life--;
+        this.age++;
+        var outputs = {};
 
-    // Die
-    die() {
-        return this.brain.export();
+        // Obtain input values from vision and normalize values
+        var inputs = []; // ToDo: consider building input using one-hot encoded square types instead of one dimensional color values 
+        for (var i = x-this.vision; i <= x+this.vision; i++) {
+            for (var j = y-this.vision; j <= y+this.vision; j++) {
+                if (i < 0 || i > config.worldWidth-1 || j < 0 || j > config.worldHeight-1) {
+                    continue;
+                }
+                // Look for object on top
+                var onTop = state[i][j][0];
+                for (var k = 0; k < state[i][j].length; k++) {
+                    if (state[i][j][k].z > onTop.z) {
+                        onTop = state[i][j][k];
+                    }
+                }
+                inputs.push(onTop.color.replace("#", "0x"));
+            }
+        }
+        // Normalize input vsalues
+        var ratio = "0xFFFFFF" / 100;  
+        inputs = inputs.map(v => Math.round(v / ratio));
+
+        // Calculate and return outputs
+        var brainOutputs = this.brain.update(inputs);
+        Object.keys(outputs).forEach(function(key,index) {
+            brainOutputs[index] >= 0.5 ? outputs[key] = 1 : outputs[key] = 0; 
+        });
+
+        return outputs;
+        
+    }
+
+    processItem(Item) {
+        if (Item.constructor.name == "Grass") {
+            this.life = Math.min(100, this.life += 10);
+        }
     }
 
 }
@@ -417,7 +453,7 @@ class Neuron {
             noActivationFunction: function (a) {return a;},
             sigmoidActivationFunction: function sigmoid(z) { return 1 / (1 + Math.exp(-z)); }
         }
-        this.activationFunction = activationFunctions[activationFunctionName]; // Activation function code
+        this.activationFunction = this.activationFunctions[activationFunctionName]; // Activation function code
         this.activationFunctionName = activationFunctionName; // Name of activation function, used for export/import
         this.inputs = []; // Array of primitive input values
         this.inputConnections = []; // Input links from other neurons
@@ -427,24 +463,25 @@ class Neuron {
 
     update() {
         // Calculate output
-        inputSum = this.inputs.reduce((a,b)=>a+b);
-        var output = activationFunction(inputSum);
+        var inputSum = this.inputs.reduce((a,b)=>a+b);
+        var output = this.activationFunction(inputSum);
 
         // Clear own inputs
         this.inputs = [];
 
         // Set inputs of connected neurons
         for (var i = 0; i < this.outputConnections.length; i++) {
-            this.outputConnections[i].inputs.push(output*this.outputConnections[i].weight);
+            this.outputConnections[i].to.inputs.push(output*this.outputConnections[i].weight);
         }
     }
 }
 
 // Neuron connection
 class Connection {
-    constructor(weight, connectedTo) {
+    constructor(weight, from, to) {
         this.weight = weight;
-        this.connectedTo = connectedTo;
+        this.from = from;
+        this.to = to;
     }
 }
 
@@ -496,7 +533,7 @@ class Brain {
             // Import connections
             for (var i = 0; i < brain.length; i++) {
                 for (var j = 0; j < brain[i]["connections"].length; j++) {
-                    allNeurons[i][outputConnections].push(new Connection(brain[i]["connections"][j].weight, allNeurons[brain[i]["connections"][j].to]));
+                    allNeurons[i]["outputConnections"].push(new Connection(brain[i]["connections"][j].weight, allNeurons[i], allNeurons[brain[i]["connections"][j].to]));
                 }
             }
 
@@ -550,14 +587,14 @@ class Brain {
         
         }
         
-        // Mutate brain
-        mutate();
+        // Mutate brain after import
+        this.mutate();
 
     }
 
     // Export brain
     export() {
-        var brain = {};
+        var brain = [];
         var neurons = this.inputNeurons.concat(this.outputNeurons, this.internalNeurons);
 
         // Export neurons
@@ -569,8 +606,8 @@ class Brain {
             for (var j = 0; j < neurons[i].outputConnections.length; j++) {
                 var weight = neurons[i].outputConnections[j].weight;
                 var from = i;
-                var to = neurons.findIndex(x => x === neurons[i].outputConnections[j].connectedTo);
-                brain[i][connections].push({"weight":weight, "from":from, "to":to });
+                var to = neurons.findIndex(x => x === neurons[i].outputConnections[j].to);
+                brain[i]["connections"].push({"weight":weight, "from":from, "to":to });
             }
         }
 
@@ -578,24 +615,123 @@ class Brain {
     
     }
 
+    // Add neuron to brain
+    addNeuron(activationFunctionName, type) {
+        var neuron = new Neuron(activationFunctionName, type);
+        if (type == "input") {
+            this.inputNeurons.push(neuron);
+        }
+        else if (type == "output") {
+            this.outputNeurons.push(neuron);
+        }
+        else if (type == "internal") {
+            this.internalNeurons.push(neuron);
+        }
+        return neuron;
+    }
+
+    // Add connection to neuron(s)
+    addConnection(weight, from, to) {
+        var conn = new Connection(weight, from, to);
+        to.inputConnections.push(conn);
+        from.outputConnections.push(conn);
+        return conn;
+    }
+
+    // Delete neron and all input and output connections touching it
+    removeNeuron(neuron) {
+        // Remove output connections
+        for (var i = 0; i < neuron.outputConnections.length; i++) {
+            var targetNeuron = neuron.outputConnections[i].to;
+            targetNeuron.inputConnections = targetNeuron.inputConnections.filter(e => e!=neuron.outputConnections[i]);
+        }
+
+        // Remove input connections
+        for (var i = 0; i < neuron.inputConnections; i++) {
+            var targetNeuron = neuron.inputConnections[i].from;
+            targetNeuron.outputConnections = targetNeuron.outputConnections.filter(e => e!=neuron.inputConnections[i]);
+        }
+
+        // Remove neuron
+        if (neuron.type == "input") {
+            this.inputNeurons = this.inputNeurons.filter(e => e!=neuron);
+        }
+        else if (neuron.type == "output") {
+            this.outputNeurons = this.outputNeurons.filter(e => e!=neuron);
+        }
+        else if (neuron.type == "internal") {
+            this.internalNeurons = this.internalNeurons.filter(e => e!=neuron);
+        }
+    }
+
+    // Remove connection from neuron
+    removeConnection(connection) {
+        // Remove from source neuron
+        connection.from.outputConnections = connection.from.outputConnections.filter(e => e!=connection);
+
+        // Remove from target neuron
+        connection.to.inputConnections = connection.to.inputConnections.filter(e => e!=connection);
+    }
+
     // Mutate brain
     mutate() {
-        
-    }
+        var probabilities = {
+            "addNeuron" : 0.2,
+            "removeNeuron" : 0.2,
+            "addConnection" : 0.2,
+            "removeConnection" : 0.2,
+            "updateWeight": 0.2
+        }
 
-    addNeuron(x, y, Neuron) {
+        // Add internal neuron
+        var random = Math.random();
+        if (random < probabilities.addNeuron) {
+            this.addNeuron("sigmoidActivationFunction", "internal");
+        }
 
-    }
+        // Remove internal neuron
+        random = Math.random();
+        if (random < probabilities.removeNeuron) {
+            var randomNeuron = this.internalNeurons[Math.floor(Math.random()*this.internalNeurons.length)];
+            if (randomNeuron !== undefined) {
+                this.removeNeuron(randomNeuron);
+            }
+        }
 
-    addConnection(from, to) {
+        // Add output connection to either input or internal neurons. TODO: add output connections to output neurons too, e.g. feedback loops
+        random = Math.random();
+        if (random < probabilities.addConnection) {
+            var weight = (Math.random() * 2) - 1; // random number between -1 and 1
+            var inputAndInternalNeurons = this.inputNeurons.concat(this.internalNeurons);
+            var randomFromNeuron = inputAndInternalNeurons[Math.floor(Math.random()*inputAndInternalNeurons.length)];
+            var randomToNeuron = inputAndInternalNeurons[Math.floor(Math.random()*inputAndInternalNeurons.length)];
+            this.addConnection(weight, randomFromNeuron, randomToNeuron);
+        }
 
-    }
+        // Remove output connection from either input or internal neurons
+        random = Math.random();
+        if (random < probabilities.removeConnection) {
+            var inputAndInternalNeurons = this.inputNeurons.concat(this.internalNeurons);
+            var randomNeuron = inputAndInternalNeurons[Math.floor(Math.random()*inputAndInternalNeurons.length)];
+            var randomConnection = randomNeuron.outputConnections[Math.floor(Math.random()*randomNeuron.outputConnections.length)];
+            // No connection to remove if neuron has no connections
+            if (randomConnection !== undefined) {
+                this.removeConnection(randomConnection);
+            }
+        }
 
-    removeNeuron(Neuron) {
-
-    }
-
-    removeConnection(Connection) {
+        // Update weight on random connection on random neuron
+        random = Math.random();
+        if (random < probabilities.updateWeight) {
+            var weight = (Math.random() * 2) - 1; // random number between -1 and 1
+            var inputAndInternalNeurons = this.inputNeurons.concat(this.internalNeurons);
+            var randomNeuron = inputAndInternalNeurons[Math.floor(Math.random()*inputAndInternalNeurons.length)];
+            var randomConnection = randomNeuron.outputConnections[Math.floor(Math.random()*randomNeuron.outputConnections.length)];
+            // No weights will be updated if neuron has no connections
+            if (randomConnection !== undefined) {
+                randomConnection.weight = weight;
+            }
+        }
 
     }
 
@@ -616,9 +752,9 @@ class Brain {
         }
 
         // Calculate outputs
-        var outputs;
+        var outputs = [];
         for (var i=0; i < this.outputNeurons.length; i++) {
-            outputs.push(this.outputNeurons[i].inputs.reduce((a,b)=>a+b));
+            outputs.push(this.outputNeurons[i].inputs.reduce((a,b)=>a+b, 0));
             this.outputNeurons[i].inputs = [];
         }
         return outputs;
