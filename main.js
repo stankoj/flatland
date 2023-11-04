@@ -533,58 +533,12 @@ class Brain {
             // Import connections
             for (var i = 0; i < brain.length; i++) {
                 for (var j = 0; j < brain[i]["connections"].length; j++) {
-                    allNeurons[i]["outputConnections"].push(new Connection(brain[i]["connections"][j].weight, allNeurons[i], allNeurons[brain[i]["connections"][j].to]));
+                    // Import output connections to current neruon
+                    //allNeurons[i]["outputConnections"].push(new Connection(brain[i]["connections"][j].weight, allNeurons[i], allNeurons[brain[i]["connections"][j].to]));
+                    
+                    this.addConnection(brain[i]["connections"][j].weight, allNeurons[i], allNeurons[brain[i]["connections"][j].to]);
                 }
             }
-
-            /*
-            // Import neurons
-            for (var i = 0; i < brain.length; i++) {
-                if (brain[i].type == "input") {
-                    var target = this.inputNeurons;
-                }
-                else if (brain[i].type == "output") {
-                    var target = this.outputNeurons;
-                }
-                else if (brain[i].type == "internal") {
-                    var target = this.internalNeurons;
-                }
-                target.push(new Neuron(brain[i].activationFunctionName, brain[i].type));
-            }
-            
-            // Import connections
-            for (var i = 0; i < brain.length; i++) {
-                for (var j = 0; j < brain[i]["connections"].length; j++) {
-                    if (brain[i].type == "input") {
-                        var target = this.inputNeurons;
-                        var offset = 0; // Offset is used because the exported brain has all neurons in one array, but we have to import them into separate arrays for input/output/internal
-                    }
-                    else if (brain[i].type == "output") {
-                        var target = this.outputNeurons;
-                        var offset = his.inputNeurons.length;
-                    }
-                    else if (brain[i].type == "internal") {
-                        var target = this.internalNeurons;
-                        var offset = this.inputNeurons.length + this.outputNeurons.length;
-                    }
-                    if (brain[i]["connections"][j].type == "input") {
-                        var connectedTo = this.inputNeurons;
-                        var connectedToOffset = 0;
-                    }
-                    else if (brain[i]["connections"][j].type == "output") {
-                        var connectedTo = this.outputNeurons;
-                        var connectedToOffset = his.inputNeurons.length;
-                    }
-                    else if (brain[i]["connections"][j].type == "internal") {
-                        var connectedTo = this.internalNeurons;
-                        var connectedToOffset = this.inputNeurons.length + this.outputNeurons.length;
-                    }
-                    target[i-offset]["connections"].push(new Connection(brain[i]["connections"][j].weight, connectedTo[brain[i]["connections"][j].to-connectedToOffset]));
-                }
-            }
-
-        */
-        
         }
         
         // Mutate brain after import
@@ -640,37 +594,36 @@ class Brain {
 
     // Delete neron and all input and output connections touching it
     removeNeuron(neuron) {
+
         // Remove output connections
-        for (var i = 0; i < neuron.outputConnections.length; i++) {
-            var targetNeuron = neuron.outputConnections[i].to;
-            targetNeuron.inputConnections = targetNeuron.inputConnections.filter(e => e!=neuron.outputConnections[i]);
-        }
+        while (neuron.outputConnections.length > 0) {
+            this.removeConnection(neuron.outputConnections[0]);
+        } 
 
         // Remove input connections
-        for (var i = 0; i < neuron.inputConnections; i++) {
-            var targetNeuron = neuron.inputConnections[i].from;
-            targetNeuron.outputConnections = targetNeuron.outputConnections.filter(e => e!=neuron.inputConnections[i]);
-        }
+        while (neuron.inputConnections.length > 0) {
+            this.removeConnection(neuron.inputConnections[0]);
+        } 
 
         // Remove neuron
         if (neuron.type == "input") {
-            this.inputNeurons = this.inputNeurons.filter(e => e!=neuron);
+            this.inputNeurons = this.inputNeurons.filter(e => e!==neuron);
         }
         else if (neuron.type == "output") {
-            this.outputNeurons = this.outputNeurons.filter(e => e!=neuron);
+            this.outputNeurons = this.outputNeurons.filter(e => e!==neuron);
         }
         else if (neuron.type == "internal") {
-            this.internalNeurons = this.internalNeurons.filter(e => e!=neuron);
+            this.internalNeurons = this.internalNeurons.filter(e => e!==neuron);
         }
     }
 
     // Remove connection from neuron
     removeConnection(connection) {
         // Remove from source neuron
-        connection.from.outputConnections = connection.from.outputConnections.filter(e => e!=connection);
+        connection.from.outputConnections = connection.from.outputConnections.filter(e => e!==connection);
 
         // Remove from target neuron
-        connection.to.inputConnections = connection.to.inputConnections.filter(e => e!=connection);
+        connection.to.inputConnections = connection.to.inputConnections.filter(e => e!==connection);
     }
 
     // Mutate brain
