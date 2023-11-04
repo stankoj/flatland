@@ -30,6 +30,8 @@ class World {
         // World properties
         this.height = config.worldHeight;
         this.width = config.worldWidth;
+        this.bestBrains = [];
+        this.keepBestBrains = 100;
         this.state=Array.from(new Array(this.height), () => new Array(this.width).fill())
 
         // Stats
@@ -159,7 +161,7 @@ class World {
                 // Remove actor from old filed
                 var oldLocation = actions[i]["currentLocation"];
                 var oldField = this.state[oldLocation[0]][oldLocation[1]];
-                this.state[oldLocation[0]][oldLocation[1]] = oldField.filter(e => e!=actions[i]["object"]);
+                this.state[oldLocation[0]][oldLocation[1]] = oldField.filter(e => e!==actions[i]["object"]);
             }
         }
 
@@ -188,16 +190,34 @@ class World {
 
         // Remove dead actors and add new ones
         for (let i = 0; i < actions.length; i++) {
-            var location = actions[i]["newLocation"];
+            if (actions[i]["conflict"] == false) {
+                var location = actions[i]["newLocation"];
+            }
+            else {
+                var location = actions[i]["currentLocation"];
+            }
             var currentField = this.state[location[0]][location[1]];
             if (actions[i]["object"].life <= 0) {
                 // Remove actor
                 var brain = actions[i]["object"].brain.export();
                 this.state[location[0]][location[1]] = currentField.filter(e => e!=actions[i]["object"]);
 
+                // Check if brain is better than previous brains
+                if (this.bestBrains.length < this.keepBestBrains) {
+                    this.bestBrains.push({"brain":brain,"age":actions[i]["object"].age});
+                }
+                else {
+                    var worstAge = this.bestBrains.reduce((prev, current) => (prev.y < current.y) ? prev : current, 0);
+                    if (actions[i]["object"].age >= worstAge) {
+                        var worstIndex = this.bestBrains.findIndex(x => x.age == worstAge);
+                        bestBrains[worstIndex]={"brain":brain,"age":actions[i]["object"].age};
+                    }
+                }
+
                 // Add new one
                 // TODO: import brain that performed best so far, not just last brain
                 //while (!this.addSquare(this.state, Robot, {"algorithm":"random"}));
+                brain = this.bestBrains[Math.floor(Math.random()*this.bestBrains.length)].brain;
                 while (!this.addSquare(this.state, Creature, {"brain":brain}));
             }
         }
@@ -405,7 +425,12 @@ class Creature {
     update(x, y, state) {
         this.life--;
         this.age++;
-        var outputs = {};
+        var outputs = {
+            "up": 0,
+            "down": 0,
+            "left": 0,
+            "right": 0
+          };
 
         // Obtain input values from vision and normalize values
         var inputs = []; // ToDo: consider building input using one-hot encoded square types instead of one dimensional color values 
@@ -463,7 +488,7 @@ class Neuron {
 
     update() {
         // Calculate output
-        var inputSum = this.inputs.reduce((a,b)=>a+b);
+        var inputSum = this.inputs.reduce((a,b)=>a+b,0);
         var output = this.activationFunction(inputSum);
 
         // Clear own inputs
@@ -497,15 +522,13 @@ class Brain {
         // If building brain from scratch
         if (!brain) {
             // Create input neurons
-            var inputNeuronActivationFunction = this.noActivationFunction;
             for (var i = 0; i < inputs; i++) {
                 this.inputNeurons.push(new Neuron("noActivationFunction", "input"));
             }
             
             // Create output neurons
-            var outputNeuronActivationFunction = this.noActivationFunction
             for (var i = 0; i < outputs; i++) {
-                this.outputNeurons.push(new Neuron("noActivationFunction", "input"));
+                this.outputNeurons.push(new Neuron("sigmoidActivationFunction", "output"));
             }
         }
 
@@ -630,8 +653,8 @@ class Brain {
     mutate() {
         var probabilities = {
             "addNeuron" : 0.2,
-            "removeNeuron" : 0.2,
-            "addConnection" : 0.2,
+            "removeNeuron" : 0.0,
+            "addConnection" : 1.0,
             "removeConnection" : 0.2,
             "updateWeight": 0.2
         }
@@ -655,17 +678,17 @@ class Brain {
         random = Math.random();
         if (random < probabilities.addConnection) {
             var weight = (Math.random() * 2) - 1; // random number between -1 and 1
-            var inputAndInternalNeurons = this.inputNeurons.concat(this.internalNeurons);
-            var randomFromNeuron = inputAndInternalNeurons[Math.floor(Math.random()*inputAndInternalNeurons.length)];
-            var randomToNeuron = inputAndInternalNeurons[Math.floor(Math.random()*inputAndInternalNeurons.length)];
+            var allNeurons = this.inputNeurons.concat(this.outputNeurons, this.internalNeurons);
+            var randomFromNeuron = allNeurons[Math.floor(Math.random()*allNeurons.length)];
+            var randomToNeuron = allNeurons[Math.floor(Math.random()*allNeurons.length)];
             this.addConnection(weight, randomFromNeuron, randomToNeuron);
         }
 
         // Remove output connection from either input or internal neurons
         random = Math.random();
         if (random < probabilities.removeConnection) {
-            var inputAndInternalNeurons = this.inputNeurons.concat(this.internalNeurons);
-            var randomNeuron = inputAndInternalNeurons[Math.floor(Math.random()*inputAndInternalNeurons.length)];
+            var allNeurons = this.inputNeurons.concat(this.outputNeurons, this.internalNeurons);
+            var randomNeuron = allNeurons[Math.floor(Math.random()*allNeurons.length)];
             var randomConnection = randomNeuron.outputConnections[Math.floor(Math.random()*randomNeuron.outputConnections.length)];
             // No connection to remove if neuron has no connections
             if (randomConnection !== undefined) {
@@ -696,20 +719,20 @@ class Brain {
         }
 
         // Update each internal neuron
-        for (var i=0; i < this.height; i++) {
-            for (var j=0; j < this.width; j++)
-                if (internalNeurons[i][j].length == 0) {
-                    continue;
-                }
-                internalNeurons[i][j].update();
+        for (var i=0; i < this.internalNeurons.length; i++) {
+            this.internalNeurons[i].update();
         }
 
         // Calculate outputs
         var outputs = [];
         for (var i=0; i < this.outputNeurons.length; i++) {
-            outputs.push(this.outputNeurons[i].inputs.reduce((a,b)=>a+b, 0));
+            var rawOutput = this.outputNeurons[i].inputs.reduce((a,b)=>a+b, 0); 
+            var activatedOutput = 1 / (1 + Math.exp(rawOutput)); // sigmoid activation function
+            //var activatedOutput = rawOutput; // No activation function
+            outputs.push(activatedOutput);
             this.outputNeurons[i].inputs = [];
         }
+
         return outputs;
     }
 }
@@ -759,7 +782,6 @@ var logger = new Logger();
 
 // Game loop
 var lastDraw = 0;
-var speed = config.speed;
 var doUpdate = 0;
 var lastUpdate = 0;
 var lastUpdateCycle = 0;
@@ -768,6 +790,7 @@ var lastUpdateCycle = 0;
 // The world update function works via a web worker because requestAnimationFeame stops when tab is not in focus
 var w = new Worker("webworker.js");
 w.onmessage = function(event) {
+    var speed = config.speed;
     doUpdate += (performance.now()-lastUpdateCycle)/speed;
     while (Math.floor(doUpdate>0)) {
         world.update();
