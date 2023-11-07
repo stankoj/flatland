@@ -238,11 +238,16 @@ class World {
                     this.populationRemaining--;
                 }
 
+                // Clear world and generate new one
+                this.clear;
+                this.generate(this.bestBrain.brain);
+
                 // Add creatrure
-                while (!this.addSquare(this.state, Creature, {"brain":this.bestBrain.brain}));
+                //while (!this.addSquare(this.state, Creature, {"brain":this.bestBrain.brain}));
 
                 // If population fully generated, pick best brain and proceed to next cycle
                 if (this.populationRemaining == 0) {
+                    this.bestBrain = false;
                     for (var p = 0; p < this.population.length; p++) {
                         if (this.bestBrain == false) {
                             this.bestBrain = this.population[p];
@@ -252,12 +257,8 @@ class World {
                         }
                     }
                     this.population = [];
-                    this.populationRemaining = this.populationSize;
+                    this.populationRemaining = this.populationSize;     
                 }
-                
-                // Clear world and generate new one
-                //this.clear;
-                //this.generate(brain);
             }
         }
 
@@ -692,7 +693,7 @@ class Brain {
     // Mutate brain
     mutate() {
         var probabilities = {
-            "addNeuron" : 1.0,
+            "addNeuron" : 0.2,
             "removeNeuron" : 0.0,
             "addConnection" : 1.0,
             "removeConnection" : 0.2,
