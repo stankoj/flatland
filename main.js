@@ -30,8 +30,11 @@ class World {
         // World properties
         this.height = config.worldHeight;
         this.width = config.worldWidth;
-        this.bestBrains = [];
-        this.keepBestBrains = 100;
+        this.bestBrain = false;
+        this.population = [];
+        this.keepBestBrains = 1;
+        this.populationSize = 100;
+        this.populationRemaining = this.populationSize;
         this.state=Array.from(new Array(this.height), () => new Array(this.width).fill())
 
         // Stats
@@ -59,7 +62,7 @@ class World {
     }
 
     // Function to generate the world
-    generate() {
+    generate(brain = false) {
         // Generate terrain
         for (let i = 0; i < this.height; i++) {
             for (let j = 0; j < this.width; j++) {
@@ -86,7 +89,12 @@ class World {
 
         // Generate actors
         //while (!this.addSquare(this.state, Robot, {"algorithm":"random"}));
-        while (!this.addSquare(this.state, Creature));
+        while (!this.addSquare(this.state, Creature, {"brain":brain}));
+    }
+
+    // Clear world state
+    clear() {
+        this.state=Array.from(new Array(this.height), () => new Array(this.width).fill())
     }
 
     // Function to update the world state for one timestep
@@ -203,6 +211,7 @@ class World {
                 this.state[location[0]][location[1]] = currentField.filter(e => e!=actions[i]["object"]);
 
                 // Check if brain is better than previous brains
+                /*
                 if (this.bestBrains.length < this.keepBestBrains) {
                     this.bestBrains.push({"brain":brain,"age":actions[i]["object"].age});
                 }
@@ -213,12 +222,42 @@ class World {
                         bestBrains[worstIndex]={"brain":brain,"age":actions[i]["object"].age};
                     }
                 }
+                */
 
                 // Add new one
-                // TODO: import brain that performed best so far, not just last brain
+
+                // Add robot
                 //while (!this.addSquare(this.state, Robot, {"algorithm":"random"}));
-                brain = this.bestBrains[Math.floor(Math.random()*this.bestBrains.length)].brain;
-                while (!this.addSquare(this.state, Creature, {"brain":brain}));
+
+                // Select random brain from bestBrains array
+                //brain = this.bestBrains[Math.floor(Math.random()*this.bestBrains.length)].brain;
+
+                // Generate population by evolving and testing best brain from last cycle
+                if (this.populationRemaining > 0) {
+                    this.population.push({"brain":brain, "age":actions[i]["object"].age});
+                    this.populationRemaining--;
+                }
+
+                // Add creatrure
+                while (!this.addSquare(this.state, Creature, {"brain":this.bestBrain.brain}));
+
+                // If population fully generated, pick best brain and proceed to next cycle
+                if (this.populationRemaining == 0) {
+                    for (var p = 0; p < this.population.length; p++) {
+                        if (this.bestBrain == false) {
+                            this.bestBrain = this.population[p];
+                        }
+                        else if (this.bestBrain.age < this.population[p].age) {
+                            this.bestBrain = this.population[p];
+                        }
+                    }
+                    this.population = [];
+                    this.populationRemaining = this.populationSize;
+                }
+                
+                // Clear world and generate new one
+                //this.clear;
+                //this.generate(brain);
             }
         }
 
@@ -237,6 +276,7 @@ class World {
 
     // Function to draw the world
     draw() {
+        // Draw world
         const canvas = document.getElementById("flatland");
         const ctx = canvas.getContext("2d");
         ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -652,7 +692,7 @@ class Brain {
     // Mutate brain
     mutate() {
         var probabilities = {
-            "addNeuron" : 0.2,
+            "addNeuron" : 1.0,
             "removeNeuron" : 0.0,
             "addConnection" : 1.0,
             "removeConnection" : 0.2,
