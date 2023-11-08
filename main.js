@@ -693,10 +693,10 @@ class Brain {
     // Mutate brain
     mutate() {
         var probabilities = {
-            "addNeuron" : 0.01,
+            "addNeuron" : 0.1,
             "removeNeuron" : 0.0,
-            "addConnection" : 0.1,
-            "removeConnection" : 0.01,
+            "addConnection" : 0.9,
+            "removeConnection" : 0.1,
             "updateWeight": 0.9
         }
 
