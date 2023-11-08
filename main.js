@@ -17,7 +17,7 @@ var config = {
 "worldHeight" : 30,
 "worldWidth" : 30,
 "grassPercentange" : 0.1,
-"speed" : 1000/5000,
+"speed" : 1000/20000,
 "squareSize" : 10
 }
 
@@ -491,8 +491,8 @@ class Creature {
             }
         }
         // Normalize input vsalues
-        var ratio = "0xFFFFFF" / 100;  
-        inputs = inputs.map(v => Math.round(v / ratio));
+        var ratio = "0xFFFFFF";  
+        inputs = inputs.map(v => (v / ratio));
 
         // Calculate and return outputs
         var brainOutputs = this.brain.update(inputs);
@@ -693,11 +693,11 @@ class Brain {
     // Mutate brain
     mutate() {
         var probabilities = {
-            "addNeuron" : 0.2,
+            "addNeuron" : 0.01,
             "removeNeuron" : 0.0,
-            "addConnection" : 1.0,
-            "removeConnection" : 0.2,
-            "updateWeight": 0.2
+            "addConnection" : 0.1,
+            "removeConnection" : 0.01,
+            "updateWeight": 0.9
         }
 
         // Add internal neuron
