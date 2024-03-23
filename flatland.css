@@ -29,8 +29,3 @@ body {
     padding: 0;
   }
 
-@media screen and (orientation: portrait) {
-    #main {
-      width:90%;
-    }
-}
