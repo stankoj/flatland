@@ -14,8 +14,8 @@
 // Global config
 
 var config = {
-"worldHeight" : 30,
-"worldWidth" : 30,
+"worldHeight" : 40,
+"worldWidth" : 70,
 "grassPercentange" : 0.1,
 "speed" : 1000/1,
 "squareSize" : 10
@@ -35,8 +35,8 @@ class World {
         this.keepBestBrains = 1;
         this.populationSize = 100;
         this.populationRemaining = this.populationSize;
-        this.state=Array.from(new Array(this.height), () => new Array(this.width).fill())
-
+        this.state=Array.from(new Array(this.height), () => new Array(this.width).fill());
+        
         // Stats
         this.life = 0;
         this.age = 0;
@@ -47,8 +47,8 @@ class World {
     // Function to add a new element to the world
     addSquare(state, Class, options, x = "random", y = "random") {
         if (x == "random" || y == "random") {
-            x = Math.floor(Math.random() * this.width);
-            y = Math.floor(Math.random() * this.height);
+            x = Math.floor(Math.random() * this.height);
+            y = Math.floor(Math.random() * this.width);
         }
 
         // Check if something is already present there except terrain
@@ -294,7 +294,7 @@ class World {
 
                 // Draw object
                 ctx.beginPath();
-                ctx.rect(i * config.squareSize, j * config.squareSize, objectToDraw.width, objectToDraw.height);
+                ctx.rect(j * config.squareSize, i * config.squareSize, objectToDraw.width, objectToDraw.height);
                 ctx.fillStyle = objectToDraw.color;
                 ctx.fill();
                 ctx.closePath();
