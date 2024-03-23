@@ -1,0 +1,35 @@
+* {
+    margin: 0;
+    padding: 0;
+    font-family: Consolas, Menlo, Monaco, Lucida Console, Liberation Mono, DejaVu Sans Mono, Bitstream Vera Sans Mono, Courier New, monospace, serif;
+    color: #AAAAAA;
+  }
+
+body {
+    background-color: #141414;
+  }
+
+#title {
+    background-color: #0A0A20;
+    text-align: center;
+    vertical-align: middle;
+    line-height: 30px; 
+}
+  
+#debug {
+    float: left;
+}
+
+#main {
+    margin: auto;
+    width: 700px;
+    height: 100%;
+    background-color: #2B303E;
+    padding: 0;
+  }
+
+@media screen and (orientation: portrait) {
+    #main {
+      width:90%;
+    }
+}
