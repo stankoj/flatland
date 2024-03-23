@@ -17,7 +17,7 @@ var config = {
 "worldHeight" : 30,
 "worldWidth" : 30,
 "grassPercentange" : 0.1,
-"speed" : 1000/20000,
+"speed" : 1000/1,
 "squareSize" : 10
 }
 
@@ -837,8 +837,8 @@ w.onmessage = function(event) {
         world.update();
         logger.logUpdateTime(performance.now()-lastUpdate);
         logger.updateCount++;
-        lastUpdate = performance.now();
         doUpdate--;
+        lastUpdate = performance.now();
     }
     lastUpdateCycle = performance.now();   
   };

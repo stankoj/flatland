@@ -1,14 +1,22 @@
 
 <html>
+    <head>
+        <link rel="stylesheet" href="flatland.css">
+    </head>
     <body>
-        <div>flatland</div>
-        Update Rate: <div id="updateRate"></div>
-        Update Count: <div id="updateCount"></div>
-        Frame Rate: <div id="frameRate"></div>
-        Life: <div id="life"></div>
-        Age: <div id="age"></div>
-        Max age: <div id="maxAge"></div>
-        <canvas id="flatland" width="480" height="320"></canvas>
+        <div id="debug">
+            Update Rate: <div id="updateRate"></div>
+            Update Count: <div id="updateCount"></div>
+            Frame Rate: <div id="frameRate"></div>
+            Life: <div id="life"></div>
+            Age: <div id="age"></div>
+            Max age: <div id="maxAge"></div>
+        </div>
+        <div id="main">
+            <div id="title">flatland</div>
+            <br>
+            <canvas id="flatland" width="480" height="320"></canvas>
+        </div>
         <script src="main.js"></script>
     </body>
 </html>
