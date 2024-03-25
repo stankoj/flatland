@@ -1,22 +1,33 @@
 
 <html>
     <head>
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/css/bootstrap.min.css">
         <link rel="stylesheet" href="flatland.css">
         <meta name="viewport" content="width=700px"/>
     </head>
     <body>
         <div id="debug">
             Update Rate: <div id="updateRate"></div>
-            Update Count: <div id="updateCount"></div>
             Frame Rate: <div id="frameRate"></div>
-            Life: <div id="life"></div>
-            Age: <div id="age"></div>
-            Max age: <div id="maxAge"></div>
         </div>
         <div id="main">
             <div id="title">flatland</div>
             <br>
             <canvas id="flatland" width="700" height="400"></canvas>
+            <table id="stats">
+                <tr>
+                  <th>life</th>
+                  <th>age</th>
+                  <th>max age</th>
+                  <th>elapsed</th>
+                </tr>
+                <tr>
+                  <td id="life">0</td>
+                  <td id="age">0</td>
+                  <td id="max age">0</td>
+                  <td id="elapsed">0</td>
+                </tr>
+            </table>
         </div>
         <script src="main.js"></script>
     </body>

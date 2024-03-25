@@ -17,8 +17,8 @@ body {
 }
   
 #debug {
-    float: left;
-    display: none;
+    position:absolute;
+    /*display: none;*/
 }
 
 #main {
@@ -29,3 +29,19 @@ body {
     padding: 0;
   }
 
+#stats {
+    margin-top: 10px;
+    border-collapse: separate;
+    border-spacing: 10px 0;
+}
+
+#stats th {
+    background-color: #1B202E;
+    width: 100px;
+}
+
+#stats td {
+    background-color: #2B303E;
+    text-align: right;
+    color: #CCCCCC;
+}

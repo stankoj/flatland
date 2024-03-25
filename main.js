@@ -304,7 +304,7 @@ class World {
         // Draw UI
         var updateLife = document.getElementById("life");
         var updateAge = document.getElementById("age");
-        var updateMaxAge = document.getElementById("maxAge");
+        var updateMaxAge = document.getElementById("max age");
         updateLife.innerHTML = this.life;
         updateAge.innerHTML = this.age;
         updateMaxAge.innerHTML = this.maxAge;
@@ -802,7 +802,7 @@ class Logger {
 
         var frameRateDiv = document.getElementById("frameRate");
         var updateRateDiv = document.getElementById("updateRate");
-        var updateCountDiv = document.getElementById("updateCount");
+        var updateCountDiv = document.getElementById("elapsed");
 
 
         frameRateDiv.innerHTML = avgFrameRate;
