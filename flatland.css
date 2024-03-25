@@ -30,6 +30,7 @@ body {
   }
 
 #stats {
+    font-size: 18px;
     margin-top: 10px;
     border-collapse: separate;
     border-spacing: 10px 0;
