@@ -423,7 +423,7 @@ class Rock {
         this.width=config.squareSize;
         this.height=config.squareSize;
         this.z=1;
-        this.color="#666666";
+        this.color="#2B303E";
     }
 }
 
@@ -434,7 +434,7 @@ class Grass {
         this.width=config.squareSize;
         this.height=config.squareSize;
         this.z=1;
-        this.color="#009900";
+        this.color="#194D19";
     }
 }
 
@@ -445,7 +445,27 @@ class Earth {
         this.width=config.squareSize;
         this.height=config.squareSize;
         this.z=0;
-        this.color="#991111";
+        this.color="#776E52";
+    }
+}
+
+class Water {
+    constructor() {
+        this.type="terrain";
+        this.width=config.squareSize;
+        this.height=config.squareSize;
+        this.z=0;
+        this.color="#6699CC";
+    }
+}
+
+class Lava {
+    constructor() {
+        this.type="terrain";
+        this.width=config.squareSize;
+        this.height=config.squareSize;
+        this.z=0;
+        this.color="#FE5F55";
     }
 }
 
@@ -456,7 +476,7 @@ class Creature {
         this.width = config.squareSize;
         this.height = config.squareSize;
         this.z = 2;
-        this.color = "#660066";
+        this.color = "#5F0A87";
         this.life = 100;
         this.age = 0;
         this.selected = true;
