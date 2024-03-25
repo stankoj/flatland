@@ -45,4 +45,18 @@ body {
     background-color: #2B303E;
     text-align: right;
     color: #CCCCCC;
+    padding-top:2px;
+}
+
+#stats .speed, .speed_control {
+    text-align: center;
+}
+
+#stats .speed_control {
+    width: 40px;
+    color: white;
+}
+
+#stats .spacing {
+    background-color: #2B303E;
 }
