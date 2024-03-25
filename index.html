@@ -1,9 +1,8 @@
-
 <html>
     <head>
         <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/css/bootstrap.min.css">
         <link rel="stylesheet" href="flatland.css">
-        <meta name="viewport" content="width=700px"/>
+        <meta name="viewport" content="width=700px, maximum-scale=1.0"/>
     </head>
     <body>
         <div id="debug">
@@ -21,9 +20,9 @@
                   <th>max age</th>
                   <th>elapsed</th>
                   <th class="spacing"></th>
-                  <th rowspan="2" class="speed_control">-</th>
+                  <th rowspan="2" id="speed_control_minus">-</th>
                   <th class="speed">speed</th>
-                  <th rowspan="2" class="speed_control">+</th>
+                  <th rowspan="2" id="speed_control_plus">+</th>
                 </tr>
                 <tr>
                   <td id="life"></td>
@@ -31,7 +30,7 @@
                   <td id="max age"></td>
                   <td id="elapsed"></td>
                   <td class="spacing"></td>
-                  <td class="speed">256</td>
+                  <td class="speed" id="speed"></td>
                 </tr>
             </table>
         </div>

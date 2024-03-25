@@ -17,7 +17,7 @@ var config = {
 "worldHeight" : 40,
 "worldWidth" : 70,
 "grassPercentange" : 0.1,
-"speed" : 1000/1,
+"speed" : 4,
 "squareSize" : 10
 }
 
@@ -305,9 +305,12 @@ class World {
         var updateLife = document.getElementById("life");
         var updateAge = document.getElementById("age");
         var updateMaxAge = document.getElementById("max age");
+        var speed = document.getElementById("speed");
         updateLife.innerHTML = this.life;
         updateAge.innerHTML = this.age;
         updateMaxAge.innerHTML = this.maxAge;
+        speed.innerHTML = config.speed;
+
     }
   }
 
@@ -348,7 +351,7 @@ class Robot {
             // Check in which direction there are most grass blocks
             for (var i = x-this.vision; i <= x+this.vision; i++) {
                 for (var j = y-this.vision; j <= y+this.vision; j++) {
-                    if (i < 0 || i > config.worldWidth-1 || j < 0 || j > config.worldHeight-1) {
+                    if (i < 0 || i > config.worldHeight-1 || j < 0 || j > config.worldWidth-1) {
                         continue;
                     }
                     for (var k = 0; k < state[i][j].length; k++) {
@@ -477,7 +480,7 @@ class Creature {
         var inputs = []; // ToDo: consider building input using one-hot encoded square types instead of one dimensional color values 
         for (var i = x-this.vision; i <= x+this.vision; i++) {
             for (var j = y-this.vision; j <= y+this.vision; j++) {
-                if (i < 0 || i > config.worldWidth-1 || j < 0 || j > config.worldHeight-1) {
+                if (i < 0 || i > config.worldHeight-1 || j < 0 || j > config.worldWidth-1) {
                     continue;
                 }
                 // Look for object on top
@@ -813,6 +816,26 @@ class Logger {
 
 // Main
 
+// UI funcitons
+function speed(control) {
+    let minus = document.getElementById('speed_control_minus');
+    let plus = document.getElementById('speed_control_plus');
+    if (control == "minus") {
+        plus.classList.remove('disabled')
+        config.speed > 1 ? config.speed /= 2 : false;
+        config.speed == 1 ? minus.classList.add('disabled') : false;
+    }
+    if (control == "plus") {
+        minus.classList.remove('disabled')
+        config.speed < 65536 ? config.speed *= 2 : false;
+        config.speed == 65536 ? plus.classList.add('disabled') : false;
+    }
+}
+
+// Add UI event listeners
+document.getElementById('speed_control_minus').addEventListener("click", function(){speed("minus")});
+document.getElementById('speed_control_plus').addEventListener("click", function(){speed("plus")});
+
 // Create world
 var world = new World();
 world.generate();
@@ -831,7 +854,7 @@ var lastUpdateCycle = 0;
 // The world update function works via a web worker because requestAnimationFeame stops when tab is not in focus
 var w = new Worker("webworker.js");
 w.onmessage = function(event) {
-    var speed = config.speed;
+    var speed = 1000 / config.speed;
     doUpdate += (performance.now()-lastUpdateCycle)/speed;
     while (Math.floor(doUpdate>0)) {
         world.update();

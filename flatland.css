@@ -48,15 +48,21 @@ body {
     padding-top:2px;
 }
 
-#stats .speed, .speed_control {
+#stats .speed, #speed_control_minus, #speed_control_plus {
     text-align: center;
 }
 
-#stats .speed_control {
-    width: 40px;
+#speed_control_minus, #speed_control_plus {
+    width: 40px !important;
     color: white;
+    cursor: pointer;
+    user-select: none;
 }
 
 #stats .spacing {
     background-color: #2B303E;
+}
+
+.disabled {
+    color: #444444 !important;
 }
