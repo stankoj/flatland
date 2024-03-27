@@ -32,7 +32,7 @@ class World {
         this.width = config.worldWidth;
         this.bestBrain = false;
         this.population = [];
-        this.keepBestBrains = 1;
+        this.keepBestBrains = 10;
         this.populationSize = 100;
         this.populationRemaining = this.populationSize;
         this.state=Array.from(new Array(this.height), () => new Array(this.width).fill());
@@ -424,6 +424,7 @@ class Rock {
         this.height=config.squareSize;
         this.z=1;
         this.color="#2B303E";
+        this.name = "rock";
     }
 }
 
@@ -435,6 +436,7 @@ class Grass {
         this.height=config.squareSize;
         this.z=1;
         this.color="#194D19";
+        this.name = "grass";
     }
 }
 
@@ -446,6 +448,7 @@ class Earth {
         this.height=config.squareSize;
         this.z=0;
         this.color="#776E52";
+        this.name = "earth";
     }
 }
 
@@ -456,6 +459,7 @@ class Water {
         this.height=config.squareSize;
         this.z=0;
         this.color="#6699CC";
+        this.name = "water";
     }
 }
 
@@ -466,6 +470,7 @@ class Lava {
         this.height=config.squareSize;
         this.z=0;
         this.color="#FE5F55";
+        this.name = "lava";
     }
 }
 
@@ -476,13 +481,14 @@ class Creature {
         this.width = config.squareSize;
         this.height = config.squareSize;
         this.z = 2;
-        this.color = "#5F0A87";
+        this.color = "#6600CC";
         this.life = 100;
         this.age = 0;
         this.selected = true;
-        this.vision = 5;
+        this.vision = 1;
+        this.visionElements = ["earth", "rock", "grass"]
         this.outputs = 4;
-        this.brain = new Brain(options.brain, this.vision*this.vision, this.outputs); // If vision is changed to 3 colors, the input tensor should be vision*vision*3
+        this.brain = new Brain(options.brain, Math.pow(this.vision+this.vision+1, 2) * this.visionElements.length, this.outputs); 
     }
 
     // Update creature
@@ -497,26 +503,29 @@ class Creature {
           };
 
         // Obtain input values from vision and normalize values
-        var inputs = []; // ToDo: consider building input using one-hot encoded square types instead of one dimensional color values 
+        var inputs = []; 
         for (var i = x-this.vision; i <= x+this.vision; i++) {
             for (var j = y-this.vision; j <= y+this.vision; j++) {
-                if (i < 0 || i > config.worldHeight-1 || j < 0 || j > config.worldWidth-1) {
-                    continue;
-                }
-                // Look for object on top
-                var onTop = state[i][j][0];
-                for (var k = 0; k < state[i][j].length; k++) {
-                    if (state[i][j][k].z > onTop.z) {
-                        onTop = state[i][j][k];
+                if (state?.[i]?.[j]) {
+                    // Look for object on top
+                    var onTop = state[i][j][0];
+                    for (var k = 0; k < state[i][j].length; k++) {
+                        if (state[i][j][k].z > onTop.z) {
+                            onTop = state[i][j][k];
+                        }
+                    }
+                    for (var v = 0; v < this.visionElements.length; v++) {
+                        onTop.name == this.visionElements[v] ? inputs.push(1) : inputs.push(0);
                     }
                 }
-                inputs.push(onTop.color.replace("#", "0x"));
+                else {
+                    for (var n = 0; n < this.visionElements.length; n++) {
+                        inputs.push(0);
+                    }
+                }
             }
         }
-        // Normalize input vsalues
-        var ratio = "0xFFFFFF";  
-        inputs = inputs.map(v => (v / ratio));
-
+        
         // Calculate and return outputs
         var brainOutputs = this.brain.update(inputs);
         Object.keys(outputs).forEach(function(key,index) {
@@ -540,7 +549,9 @@ class Neuron {
     constructor(activationFunctionName, type) {
         this.activationFunctions = { 
             noActivationFunction: function (a) {return a;},
-            sigmoidActivationFunction: function sigmoid(z) { return 1 / (1 + Math.exp(-z)); }
+            sigmoidActivationFunction: function sigmoid(z) { return 1 / (1 + Math.exp(-z)); },
+            tanhActivationFunction: function tanh(z) {return Math.sinh(z) / Math.cosh(z)},
+            reluActivationFunction: function relu(z) { return Math.max(0,z); }
         }
         this.activationFunction = this.activationFunctions[activationFunctionName]; // Activation function code
         this.activationFunctionName = activationFunctionName; // Name of activation function, used for export/import
@@ -554,6 +565,13 @@ class Neuron {
         // Calculate output
         var inputSum = this.inputs.reduce((a,b)=>a+b,0);
         var output = this.activationFunction(inputSum);
+        
+        //if (this.type == "internal") {
+        //    console.log(this.inputs)
+        //    console.log(inputSum)
+        //    console.log(output)
+        //    console.log("--------------------")
+        //}
 
         // Clear own inputs
         this.inputs = [];
@@ -592,7 +610,7 @@ class Brain {
             
             // Create output neurons
             for (var i = 0; i < outputs; i++) {
-                this.outputNeurons.push(new Neuron("sigmoidActivationFunction", "output"));
+                this.outputNeurons.push(new Neuron("tanhActivationFunction", "output"));
             }
         }
 
@@ -717,16 +735,16 @@ class Brain {
     mutate() {
         var probabilities = {
             "addNeuron" : 0.1,
-            "removeNeuron" : 0.0,
-            "addConnection" : 0.9,
-            "removeConnection" : 0.1,
-            "updateWeight": 0.9
+            "removeNeuron" : 0,
+            "addConnection" : 1,
+            "removeConnection" : 0,
+            "updateWeight": 1
         }
 
         // Add internal neuron
         var random = Math.random();
         if (random < probabilities.addNeuron) {
-            this.addNeuron("sigmoidActivationFunction", "internal");
+            this.addNeuron("tanhActivationFunction", "internal");
         }
 
         // Remove internal neuron
@@ -791,8 +809,8 @@ class Brain {
         var outputs = [];
         for (var i=0; i < this.outputNeurons.length; i++) {
             var rawOutput = this.outputNeurons[i].inputs.reduce((a,b)=>a+b, 0); 
-            var activatedOutput = 1 / (1 + Math.exp(rawOutput)); // sigmoid activation function
-            //var activatedOutput = rawOutput; // No activation function
+            //var activatedOutput = 1 / (1 + Math.exp(rawOutput)); // sigmoid activation function
+            var activatedOutput = rawOutput; // No activation function
             outputs.push(activatedOutput);
             this.outputNeurons[i].inputs = [];
         }
@@ -828,8 +846,8 @@ class Logger {
         var updateCountDiv = document.getElementById("elapsed");
 
 
-        frameRateDiv.innerHTML = avgFrameRate;
-        updateRateDiv.innerHTML = avgUpdateRate;
+        frameRateDiv.innerHTML = avgFrameRate.toFixed(2);
+        updateRateDiv.innerHTML = avgUpdateRate.toFixed(2);
         updateCountDiv.innerHTML = this.updateCount;
     };
 }
