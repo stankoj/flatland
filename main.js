@@ -21,6 +21,8 @@ var config = {
 "squareSize" : 10
 }
 
+// to track evolutionary tree globally. This is just an incrementing number used for generating creature fingerprint
+var genotype = 0;
 
 // Classes
 
@@ -31,9 +33,13 @@ class World {
         this.height = config.worldHeight;
         this.width = config.worldWidth;
         this.bestBrain = false;
-        this.population = [];
-        this.keepBestBrains = 10;
         this.populationSize = 100;
+        this.keepBestBrains = 10;
+        this.keepOtherBrains = 10;
+        this.population = [];
+        this.bestBrains = [];
+        this.populationNextGen = [];
+        this.bestBrainsNextGen = [];
         this.populationRemaining = this.populationSize;
         this.state=Array.from(new Array(this.height), () => new Array(this.width).fill());
         
@@ -95,6 +101,33 @@ class World {
     // Clear world state
     clear() {
         this.state=Array.from(new Array(this.height), () => new Array(this.width).fill())
+    }
+
+    // Calculate fingerprint difference / distance
+    fingerprintDistance (a, b) {
+        var counter = 0;
+        length = Math.min(a.length, b.length);
+        for (let i = 0; i < length; i++) {
+            if (a[i] == b[i]) {
+                counter++;
+                }
+            else {
+                break;
+            }
+        }
+        return a.length-counter + b.length-counter;
+    }
+
+    // Calculate population diversity
+    diversity(population) {
+        let sum = 0;
+        for (let i = 0; i < population.length; i++) {
+            for (let j = 0; j < population.length; j++) {
+                if (i == j) { continue; }
+                sum = sum + this.fingerprintDistance(JSON.parse(population[i]["brain"])["fingerprint"],JSON.parse(population[j]["brain"])["fingerprint"]);
+            }
+        }
+        return sum / population.length;
     }
 
     // Function to update the world state for one timestep
@@ -198,6 +231,7 @@ class World {
 
         // Remove dead actors and add new ones
         for (let i = 0; i < actions.length; i++) {
+
             if (actions[i]["conflict"] == false) {
                 var location = actions[i]["newLocation"];
             }
@@ -210,19 +244,16 @@ class World {
                 var brain = actions[i]["object"].brain.export();
                 this.state[location[0]][location[1]] = currentField.filter(e => e!=actions[i]["object"]);
 
-                // Check if brain is better than previous brains
-                /*
-                if (this.bestBrains.length < this.keepBestBrains) {
-                    this.bestBrains.push({"brain":brain,"age":actions[i]["object"].age});
-                }
-                else {
-                    var worstAge = this.bestBrains.reduce((prev, current) => (prev.y < current.y) ? prev : current, 0);
-                    if (actions[i]["object"].age >= worstAge) {
-                        var worstIndex = this.bestBrains.findIndex(x => x.age == worstAge);
-                        bestBrains[worstIndex]={"brain":brain,"age":actions[i]["object"].age};
-                    }
-                }
-                */
+                // Key rules for evolution
+                // 1. The fittest should always survice
+                // 2. Diversity
+                // 3. Improvement is not always immediate. Exploration is important.
+
+                // Algorithm
+                // 1. Generate initial population
+                // 2. Add X number of fittest to separate set
+                // 3. Generate new population from separate set + remainder from best performes of previous generation
+
 
                 // Add new one
 
@@ -232,20 +263,81 @@ class World {
                 // Select random brain from bestBrains array
                 //brain = this.bestBrains[Math.floor(Math.random()*this.bestBrains.length)].brain;
 
-                // Generate population by evolving and testing best brain from last cycle
-                if (this.populationRemaining > 0) {
-                    this.population.push({"brain":brain, "age":actions[i]["object"].age});
-                    this.populationRemaining--;
+                // Generating population
+
+                // Check if to add brain to bestBrains list or to general population
+
+                // Add to bestBrains if empty spots available
+                if (this.bestBrainsNextGen.length < this.keepBestBrains) {
+                    this.bestBrainsNextGen.push({"brain":brain,"age":actions[i]["object"].age});
                 }
 
-                // Clear world and generate new one
+                // If bestBrains list full, check if to replace some member
+                let sortedBestBrainsNextGen = this.bestBrainsNextGen.sort((a, b) => parseFloat(a.age) - parseFloat(b.age));
+                for (let b = 0; b < sortedBestBrainsNextGen.length; b++) {
+                    if (actions[i]["object"].age >= sortedBestBrainsNextGen[b].age) {
+                        // Check for diversity
+                        let tempBestBrainsNextGen = sortedBestBrainsNextGen.slice();
+                        tempBestBrainsNextGen[b]={"brain":brain,"age":actions[i]["object"].age};
+                        if (this.diversity(sortedBestBrainsNextGen) <= this.diversity(tempBestBrainsNextGen)) {
+                            sortedBestBrainsNextGen[b]={"brain":brain,"age":actions[i]["object"].age};
+                            console.log(this.diversity(sortedBestBrainsNextGen));
+                        }
+                        else {
+                            continue;
+                        }
+                    }
+                    break;
+                }
+                this.bestBrainsNextGen = sortedBestBrainsNextGen;
+                /*
+                else {
+                    var worstAge = this.bestBrainsNextGen.reduce((prev, current) => (prev.age < current.age) ? prev : current, 0);
+                    if (actions[i]["object"].age >= worstAge.age) {
+                        var worstIndex = this.bestBrainsNextGen.findIndex(x => x.age == worstAge.age);
+                        this.bestBrainsNextGen[worstIndex]={"brain":brain,"age":actions[i]["object"].age};
+                    }
+                }
+                */
+
+                // Add to general population in any case
+                this.populationNextGen.push({"brain":brain, "age":actions[i]["object"].age});
+
+                // If population size reached, generate next generation
+                if (this.populationNextGen.length == this.populationSize) {
+                    // Sort next gen population by age
+                    let sortedPopulationNextGen = this.populationNextGen.sort((a, b) => parseFloat(b.age) - parseFloat(a.age));
+                    this.populationNextGen = sortedPopulationNextGen.slice(0, this.keepOtherBrains);
+
+                    // Generate population for next round
+                    this.population = this.populationNextGen.concat(this.bestBrainsNextGen); 
+                    this.populationNextGen = [];
+
+                    // Repeat random brains from population until full population size is reached
+                    while (this.population.length < this.populationSize) {
+                        this.population.push(this.population[Math.floor(Math.random()*this.population.length)]);
+                    }
+                }
+                
+                // Clear world
                 this.clear;
-                this.generate(this.bestBrain.brain);
+
+                // Generate new world
+                // If buiding initial population
+                if (this.population.length == 0) {
+                    this.generate();
+                }
+                else {
+                // If not initial population
+                    this.generate(this.population.pop().brain)
+                }
+                genotype++;
 
                 // Add creatrure
                 //while (!this.addSquare(this.state, Creature, {"brain":this.bestBrain.brain}));
 
                 // If population fully generated, pick best brain and proceed to next cycle
+                /*
                 if (this.populationRemaining == 0) {
                     this.bestBrain = false;
                     for (var p = 0; p < this.population.length; p++) {
@@ -259,6 +351,7 @@ class World {
                     this.population = [];
                     this.populationRemaining = this.populationSize;     
                 }
+                */
             }
         }
 
@@ -600,6 +693,7 @@ class Brain {
         this.inputNeurons = [];
         this.internalNeurons=[];
         this.outputNeurons = [];
+        this.fingerprint = [];
 
         // If building brain from scratch
         if (!brain) {
@@ -617,6 +711,10 @@ class Brain {
         // If importing existing brain
         else {
             brain = JSON.parse(brain);
+
+            this.fingerprint = brain.fingerprint;
+
+            brain = brain["connectome"];
 
             var allNeurons = [];
 
@@ -653,20 +751,22 @@ class Brain {
 
     // Export brain
     export() {
-        var brain = [];
+        var brain = {"connectome":[], "fingerprint":[]};
         var neurons = this.inputNeurons.concat(this.outputNeurons, this.internalNeurons);
+        this.fingerprint.push(genotype);
+        brain["fingerprint"] = this.fingerprint;
 
         // Export neurons
         for (var i = 0; i < neurons.length; i++) {
             // Export neuron
-            brain.push({"activationFunctionName":neurons[i].activationFunctionName, "type":neurons[i].type, "connections":[]});
+            brain["connectome"].push({"activationFunctionName":neurons[i].activationFunctionName, "type":neurons[i].type, "connections":[]});
 
             // Export connections of neuron
             for (var j = 0; j < neurons[i].outputConnections.length; j++) {
                 var weight = neurons[i].outputConnections[j].weight;
                 var from = i;
                 var to = neurons.findIndex(x => x === neurons[i].outputConnections[j].to);
-                brain[i]["connections"].push({"weight":weight, "from":from, "to":to });
+                brain["connectome"][i]["connections"].push({"weight":weight, "from":from, "to":to });
             }
         }
 
@@ -734,7 +834,7 @@ class Brain {
     // Mutate brain
     mutate() {
         var probabilities = {
-            "addNeuron" : 0.1,
+            "addNeuron" : 0,
             "removeNeuron" : 0,
             "addConnection" : 1,
             "removeConnection" : 0,
