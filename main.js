@@ -33,9 +33,9 @@ class World {
         this.height = config.worldHeight;
         this.width = config.worldWidth;
         this.bestBrain = false;
-        this.populationSize = 500;
-        this.keepBestBrains = 50;
-        this.keepOtherBrains = 5;
+        this.populationSize = 1000;
+        this.keepOtherBrains = 50;
+        this.keepBestBrains = 10;
         this.population = [];
         this.bestBrains = [];
         this.populationNextGen = [];
