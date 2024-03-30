@@ -33,9 +33,9 @@ class World {
         this.height = config.worldHeight;
         this.width = config.worldWidth;
         this.bestBrain = false;
-        this.populationSize = 100;
+        this.populationSize = 1000;
         this.keepBestBrains = 10;
-        this.keepOtherBrains = 10;
+        this.keepOtherBrains = 50;
         this.population = [];
         this.bestBrains = [];
         this.populationNextGen = [];
@@ -245,23 +245,19 @@ class World {
                 this.state[location[0]][location[1]] = currentField.filter(e => e!=actions[i]["object"]);
 
                 // Key rules for evolution
-                // 1. The fittest should always survice
+                // 1. The fittest should always survive
                 // 2. Diversity
                 // 3. Improvement is not always immediate. Exploration is important.
 
                 // Algorithm
-                // 1. Generate initial population
-                // 2. Add X number of fittest to separate set
-                // 3. Generate new population from separate set + remainder from best performes of previous generation
-
-
-                // Add new one
+                // We are keeping a list of overall best brains and a list of best brains from the separate cycle.
+                // That way we ensure the overall best brains always survice, and we are also providing some room for exploration with the overall population.
+                // The two lists are used to generated the population for a cycle.
+                // The best brain list also enforces diversity by ensuring new brains are added only if diversity is maintained or increased
+                // TODO: Move the evolutionary logic out into a separate method/function or even class
 
                 // Add robot
                 //while (!this.addSquare(this.state, Robot, {"algorithm":"random"}));
-
-                // Select random brain from bestBrains array
-                //brain = this.bestBrains[Math.floor(Math.random()*this.bestBrains.length)].brain;
 
                 // Generating population
 
@@ -281,7 +277,7 @@ class World {
                         tempBestBrainsNextGen[b]={"brain":brain,"age":actions[i]["object"].age};
                         if (this.diversity(sortedBestBrainsNextGen) <= this.diversity(tempBestBrainsNextGen)) {
                             sortedBestBrainsNextGen[b]={"brain":brain,"age":actions[i]["object"].age};
-                            console.log(this.diversity(sortedBestBrainsNextGen));
+                            //console.log(this.diversity(sortedBestBrainsNextGen));
                         }
                         else {
                             continue;
@@ -290,15 +286,6 @@ class World {
                     break;
                 }
                 this.bestBrainsNextGen = sortedBestBrainsNextGen;
-                /*
-                else {
-                    var worstAge = this.bestBrainsNextGen.reduce((prev, current) => (prev.age < current.age) ? prev : current, 0);
-                    if (actions[i]["object"].age >= worstAge.age) {
-                        var worstIndex = this.bestBrainsNextGen.findIndex(x => x.age == worstAge.age);
-                        this.bestBrainsNextGen[worstIndex]={"brain":brain,"age":actions[i]["object"].age};
-                    }
-                }
-                */
 
                 // Add to general population in any case
                 this.populationNextGen.push({"brain":brain, "age":actions[i]["object"].age});
@@ -333,25 +320,6 @@ class World {
                 }
                 genotype++;
 
-                // Add creatrure
-                //while (!this.addSquare(this.state, Creature, {"brain":this.bestBrain.brain}));
-
-                // If population fully generated, pick best brain and proceed to next cycle
-                /*
-                if (this.populationRemaining == 0) {
-                    this.bestBrain = false;
-                    for (var p = 0; p < this.population.length; p++) {
-                        if (this.bestBrain == false) {
-                            this.bestBrain = this.population[p];
-                        }
-                        else if (this.bestBrain.age < this.population[p].age) {
-                            this.bestBrain = this.population[p];
-                        }
-                    }
-                    this.population = [];
-                    this.populationRemaining = this.populationSize;     
-                }
-                */
             }
         }
 
@@ -622,7 +590,8 @@ class Creature {
         // Calculate and return outputs
         var brainOutputs = this.brain.update(inputs);
         Object.keys(outputs).forEach(function(key,index) {
-            brainOutputs[index] >= 0.5 ? outputs[key] = 1 : outputs[key] = 0; 
+            // Comparing output with 0 because there is no output activation function. If sigmoid was used for example, then comparing with 0.5 would be needed.
+            brainOutputs[index] >= 0.0 ? outputs[key] = 1 : outputs[key] = 0; 
         });
 
         return outputs;
@@ -661,7 +630,7 @@ class Neuron {
         
         //if (this.type == "internal") {
         //    console.log(this.inputs)
-        //    console.log(inputSum)
+        //   console.log(inputSum)
         //    console.log(output)
         //    console.log("--------------------")
         //}
@@ -856,14 +825,30 @@ class Brain {
             }
         }
 
-        // Add output connection to either input or internal neurons. TODO: add output connections to output neurons too, e.g. feedback loops
+        // Add connection - for now connections are added only between input and output neurons 
+        // TODO: Add support for hidden layers
+        // TODO: Add support for reccuring connections (from upper to lower layers... e.g. for feedback loops) 
         random = Math.random();
         if (random < probabilities.addConnection) {
             var weight = (Math.random() * 2) - 1; // random number between -1 and 1
-            var allNeurons = this.inputNeurons.concat(this.outputNeurons, this.internalNeurons);
-            var randomFromNeuron = allNeurons[Math.floor(Math.random()*allNeurons.length)];
-            var randomToNeuron = allNeurons[Math.floor(Math.random()*allNeurons.length)];
+            var alreadyExists = false;
+            //var allNeurons = this.inputNeurons.concat(this.outputNeurons, this.internalNeurons);
+            var randomFromNeuron = this.inputNeurons[Math.floor(Math.random()*this.inputNeurons.length)];
+            var randomToNeuron = this.outputNeurons[Math.floor(Math.random()*this.outputNeurons.length)];
+            
+            // Check if connection already exists, and only update weight if yes
+            for (let i=0; i < randomFromNeuron.outputConnections.length; i++) {
+                if (randomFromNeuron.outputConnections[i].to == randomToNeuron) {
+                    randomFromNeuron.outputConnections[i].weight += weight;
+                    alreadyExists = true;
+                    break;
+                }
+            }
+
+            // Add connection if it does not already exist
+            if (alreadyExists == false) {
             this.addConnection(weight, randomFromNeuron, randomToNeuron);
+            }
         }
 
         // Remove output connection from either input or internal neurons
@@ -881,19 +866,21 @@ class Brain {
         // Update weight on random connection on random neuron
         random = Math.random();
         if (random < probabilities.updateWeight) {
-            var weight = (Math.random() * 2) - 1; // random number between -1 and 1
+            var weight = (Math.random() * 2); // random number between 0 and 2
             var inputAndInternalNeurons = this.inputNeurons.concat(this.internalNeurons);
             var randomNeuron = inputAndInternalNeurons[Math.floor(Math.random()*inputAndInternalNeurons.length)];
             var randomConnection = randomNeuron.outputConnections[Math.floor(Math.random()*randomNeuron.outputConnections.length)];
             // No weights will be updated if neuron has no connections
             if (randomConnection !== undefined) {
-                randomConnection.weight = weight;
+                randomConnection.weight *= weight;
             }
         }
 
     }
 
     update(inputs) {
+        // TODO: Check if to update each neuron just once per update cycle, or to process whole input to output stream in one update cycle
+        //console.log("inputs: "+inputs);
         // Add inputs to input enurons
         for (var i=0; i < this.inputNeurons.length; i++) {
             this.inputNeurons[i].inputs.push(inputs[i]);
@@ -914,7 +901,8 @@ class Brain {
             outputs.push(activatedOutput);
             this.outputNeurons[i].inputs = [];
         }
-
+        //console.log("outputs: "+outputs);
+        //console.log("--------------------");
         return outputs;
     }
 }
