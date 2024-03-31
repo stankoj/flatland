@@ -33,21 +33,24 @@ class World {
         this.height = config.worldHeight;
         this.width = config.worldWidth;
         this.bestBrain = false;
-        this.populationSize = 1000;
-        this.keepOtherBrains = 50;
-        this.keepBestBrains = 10;
+        this.populationSize = 100;
+        this.keepOtherBrains = 10;
+        this.keepBestBrains = 3;
         this.population = [];
         this.bestBrains = [];
         this.populationNextGen = [];
         this.bestBrainsNextGen = [];
         this.populationRemaining = this.populationSize;
         this.state=Array.from(new Array(this.height), () => new Array(this.width).fill());
+        this.grassPercentage = config.grassPercentange;
+        this.regenerateWorld = false;
         
         // Stats
         this.life = 0;
         this.age = 0;
         this.maxAge = 0;
-        this.grassPercentage = config.grassPercentange;
+        this.avgBestBrainsAge = 0;
+        this.avgBestBrainsConnectionCount = 0;
     }
 
     // Function to add a new element to the world
@@ -68,29 +71,34 @@ class World {
     }
 
     // Function to generate the world
-    generate(brain = false) {
-        // Generate terrain
-        for (let i = 0; i < this.height; i++) {
-            for (let j = 0; j < this.width; j++) {
-                this.state[i][j] = new Array();
-                this.state[i][j].push(new Earth());
-            };
-        };
+    generate(brain = false, generateEnvironment = true) {
+        if (generateEnvironment == true) {            
+            // Clear world
+            this.clear();
 
-        // Generate border
-        for (var i = 0; i < this.height; i++) {
-            for (var j = 0; j < this.width; j++) {
-                if (i == 0 || i == this.height-1 || j == 0 || j == this.width-1) {
-                    this.state[i][j].push(new Rock());
+            // Generate terrain
+            for (let i = 0; i < this.height; i++) {
+                for (let j = 0; j < this.width; j++) {
+                    this.state[i][j] = new Array();
+                    this.state[i][j].push(new Earth());
+                };
+            };
+
+            // Generate border
+            for (var i = 0; i < this.height; i++) {
+                for (var j = 0; j < this.width; j++) {
+                    if (i == 0 || i == this.height-1 || j == 0 || j == this.width-1) {
+                        this.state[i][j].push(new Rock());
+                    }
                 }
             }
-        }
 
-        // Generate grass
-        var grassNumber = this.height * this.width * this.grassPercentage;
-        while (grassNumber > 0) {
-            while (!this.addSquare(this.state, Grass));
-            grassNumber--;
+            // Generate grass
+            var grassNumber = this.height * this.width * this.grassPercentage;
+            while (grassNumber > 0) {
+                while (!this.addSquare(this.state, Grass));
+                grassNumber--;
+            }
         }
 
         // Generate actors
@@ -254,6 +262,7 @@ class World {
                 // That way we ensure the overall best brains always survice, and we are also providing some room for exploration with the overall population.
                 // The two lists are used to generated the population for a cycle.
                 // The best brain list also enforces diversity by ensuring new brains are added only if diversity is maintained or increased
+                // TODO: Eliminate one-hit wonders (doing multiple runs, and then maybe using median of max age, or take min age into account)
                 // TODO: Move the evolutionary logic out into a separate method/function or even class
 
                 // Add robot
@@ -305,21 +314,28 @@ class World {
                         this.population.push(this.population[Math.floor(Math.random()*this.population.length)]);
                     }
                 }
-                
-                // Clear world
-                this.clear;
 
                 // Generate new world
                 // If buiding initial population
                 if (this.population.length == 0) {
-                    this.generate();
+                    this.generate(false, this.regenerateWorld);
                 }
                 else {
                 // If not initial population
-                    this.generate(this.population.pop().brain)
+                    this.generate(this.population.pop().brain, this.regenerateWorld)
                 }
+
                 genotype++;
 
+                // Get average age in best brains array
+                this.avgBestBrainsAge = this.bestBrainsNextGen.reduce((total, next) => total + next.age, 0) / this.bestBrainsNextGen.length;
+
+                // get connection count in best brains array
+                for (var b = 0; b < this.bestBrainsNextGen.length; b++) {
+                    var connectionCounts = [];
+                    connectionCounts.push((this.bestBrainsNextGen[b]["brain"].match(/weight/g) || 0).length);
+                }
+                this.avgBestBrainsConnectionCount = connectionCounts.reduce((a, b) => a + b) / connectionCounts.length;
             }
         }
 
@@ -367,10 +383,14 @@ class World {
         var updateAge = document.getElementById("age");
         var updateMaxAge = document.getElementById("max age");
         var speed = document.getElementById("speed");
+        var avgAge = document.getElementById("avg age");
+        var avgConnCount = document.getElementById("avg conn count");
         updateLife.innerHTML = this.life;
         updateAge.innerHTML = this.age;
         updateMaxAge.innerHTML = this.maxAge;
         speed.innerHTML = config.speed;
+        avgAge.innerHTML = this.avgBestBrainsAge;
+        avgConnCount.innerHTML = this.avgBestBrainsConnectionCount;
 
     }
   }
