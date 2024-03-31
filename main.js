@@ -30,11 +30,12 @@ var genotype = 0;
 class World {
     constructor() {
         // World properties
+        // TODO: Set up dynamic population size (small initially, but growing as number of parameters grow)
         this.height = config.worldHeight;
         this.width = config.worldWidth;
         this.bestBrain = false;
         this.populationSize = 500;
-        this.keepOtherBrains = 10;
+        this.keepOtherBrains = 50;
         this.keepBestBrains = 5;
         this.population = [];
         this.bestBrains = [];
