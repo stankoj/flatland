@@ -29,40 +29,101 @@ body {
     padding: 0;
   }
 
-#stats {
-    font-size: 18px;
-    margin-top: 10px;
-    border-collapse: separate;
-    border-spacing: 10px 0;
+#right {
+    font-size: 16px;
 }
 
-#stats th {
-    background-color: #1B202E;
+#left {
+    float: left;
+    font-size: 16px;
+    width: 70%;
+}
+
+.stat {
+    float: left;
+    margin-left: 10px;
+}
+
+.label_stats {
     width: 100px;
+    background-color: #1B202E;
+    height: 18px;
+    line-height: 18px;
 }
 
-#stats td {
-    background-color: #2B303E;
+.value {
+    width: 100px;
     text-align: right;
     color: #CCCCCC;
-    padding-top:2px;
 }
 
-#stats .speed, #speed_control_minus, #speed_control_plus {
-    text-align: center;
-}
-
-#speed_control_minus, #speed_control_plus {
-    width: 40px !important;
+.control {
+    background-color: #1B202E;
+    width: 40px;
+    height: 40px;
+    line-height: 40px;
     color: white;
     cursor: pointer;
     user-select: none;
+    float:left;
+    text-align: center;
+    vertical-align: middle;
 }
 
-#stats .spacing {
-    background-color: #2B303E;
+.config_box, .rank_box {
+    float: left;
+    margin-left: 10px;
+    padding-right: 10px;
+}
+
+.config_label {
+    width: 100px;
+    background-color: #1B202E;
+    text-align: center;
+    height: 18px;
+    line-height: 18px;
+}
+
+.config_value {
+    width: 100px;
+    text-align: center;
+    color: #CCCCCC;
+}
+
+.rank_label {
+    width: 330px;
+    background-color: #1B202E;
+    text-align: center;
+    height: 18px;
+    line-height: 18px;
+}
+
+.rank_value {
+    width: 330px;
+    text-align: center;
+    color: #CCCCCC;
 }
 
 .disabled {
     color: #444444 !important;
+}
+
+#best {
+    margin-top: 60px;
+    margin-left: 10px;
+    clear: both;
+}
+
+.best_stat {
+    width: 430px;
+    clear: both;
+    border-bottom: 1px solid #444444;
+}
+
+.best_label {
+    float:left;
+}
+
+.best_value {
+    text-align: right;
 }

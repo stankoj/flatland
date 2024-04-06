@@ -41,6 +41,7 @@ class World {
         this.bestBrains = [];
         this.populationNextGen = [];
         this.bestBrainsNextGen = [];
+        this.selectedBestBrain = 1;
         this.populationRemaining = this.populationSize;
         this.state=Array.from(new Array(this.height), () => new Array(this.width).fill());
         this.grassPercentage = config.grassPercentange;
@@ -273,29 +274,55 @@ class World {
 
                 // Check if to add brain to bestBrains list or to general population
 
+                let modifiedBestBrainList = false;
+
                 // Add to bestBrains if empty spots available
                 if (this.bestBrainsNextGen.length < this.keepBestBrains) {
                     this.bestBrainsNextGen.push({"brain":brain,"age":actions[i]["object"].age});
+                    modifiedBestBrainList = true;
+                }
+                else {
+                    // If bestBrains list full, check if to replace some member
+                    for (let b = 0; b < this.bestBrainsNextGen.length; b++) {
+                        if (actions[i]["object"].age >= this.bestBrainsNextGen[b].age) {
+                            // Check for diversity
+                            let tempBestBrainsNextGen = this.bestBrainsNextGen.slice();
+                            tempBestBrainsNextGen[b]={"brain":brain,"age":actions[i]["object"].age};
+                            if (this.diversity(this.bestBrainsNextGen) <= this.diversity(tempBestBrainsNextGen)) {
+                                this.bestBrainsNextGen[b]={"brain":brain,"age":actions[i]["object"].age};
+                                modifiedBestBrainList = true;
+                                //console.log(this.diversity(this.bestBrainsNextGen));
+                            }
+                            else {
+                                continue;
+                            }
+                        }
+                        break;
+                    }
                 }
 
-                // If bestBrains list full, check if to replace some member
+                // Add statistics to best brain list if list is modified
                 let sortedBestBrainsNextGen = this.bestBrainsNextGen.sort((a, b) => parseFloat(a.age) - parseFloat(b.age));
-                for (let b = 0; b < sortedBestBrainsNextGen.length; b++) {
-                    if (actions[i]["object"].age >= sortedBestBrainsNextGen[b].age) {
-                        // Check for diversity
-                        let tempBestBrainsNextGen = sortedBestBrainsNextGen.slice();
-                        tempBestBrainsNextGen[b]={"brain":brain,"age":actions[i]["object"].age};
-                        if (this.diversity(sortedBestBrainsNextGen) <= this.diversity(tempBestBrainsNextGen)) {
-                            sortedBestBrainsNextGen[b]={"brain":brain,"age":actions[i]["object"].age};
-                            //console.log(this.diversity(sortedBestBrainsNextGen));
-                        }
-                        else {
-                            continue;
-                        }
-                    }
-                    break;
-                }
                 this.bestBrainsNextGen = sortedBestBrainsNextGen;
+                if (modifiedBestBrainList == true) {
+
+                    // Get average age in best brains array
+                    this.avgBestBrainsAge = this.bestBrainsNextGen.reduce((total, next) => total + next.age, 0) / this.bestBrainsNextGen.length;
+
+                    // Get connection count in best brains array
+                    var connectionCounts = [];
+                    for (var b = 0; b < this.bestBrainsNextGen.length; b++) {
+                        connectionCounts.push((this.bestBrainsNextGen[b]["brain"].match(/weight/g) || 0).length);
+                    }
+                    this.avgBestBrainsConnectionCount = connectionCounts.reduce((a, b) => a + b) / connectionCounts.length;
+
+                    // Other stats
+                    for (let b = 0; b < this.bestBrainsNextGen.length; b++) {
+                        this.bestBrainsNextGen[b].rank = b+1;
+                        this.bestBrainsNextGen[b].connectionCount = connectionCounts[b];
+                    }
+                modifiedBestBrainList = false;
+                }
 
                 // Add to general population in any case
                 this.populationNextGen.push({"brain":brain, "age":actions[i]["object"].age});
@@ -327,16 +354,6 @@ class World {
                 }
 
                 genotype++;
-
-                // Get average age in best brains array
-                this.avgBestBrainsAge = this.bestBrainsNextGen.reduce((total, next) => total + next.age, 0) / this.bestBrainsNextGen.length;
-
-                // get connection count in best brains array
-                for (var b = 0; b < this.bestBrainsNextGen.length; b++) {
-                    var connectionCounts = [];
-                    connectionCounts.push((this.bestBrainsNextGen[b]["brain"].match(/weight/g) || 0).length);
-                }
-                this.avgBestBrainsConnectionCount = connectionCounts.reduce((a, b) => a + b) / connectionCounts.length;
             }
         }
 
@@ -382,17 +399,26 @@ class World {
         // Draw UI
         var updateLife = document.getElementById("life");
         var updateAge = document.getElementById("age");
-        var updateMaxAge = document.getElementById("max age");
+        var updateMaxAge = document.getElementById("max_age");
         var speed = document.getElementById("speed");
         var avgAge = document.getElementById("avg age");
         var avgConnCount = document.getElementById("avg conn count");
+        let rank = document.getElementById('rank');
+        var rankPlus = document.getElementById('rank_control_plus');
+        var age_reached = document.getElementById('age_reached');
+        var connection_count = document.getElementById('connection_count');
         updateLife.innerHTML = this.life;
         updateAge.innerHTML = this.age;
         updateMaxAge.innerHTML = this.maxAge;
         speed.innerHTML = config.speed;
         avgAge.innerHTML = this.avgBestBrainsAge;
         avgConnCount.innerHTML = this.avgBestBrainsConnectionCount;
-
+        rank.innerHTML = "rank " + this.selectedBestBrain;
+        this.bestBrainsNextGen.length > this.selectedBestBrain ? rankPlus.classList.remove('disabled') : false;
+        if (this.bestBrainsNextGen.length > 0) {
+            age_reached.innerHTML = this.bestBrainsNextGen[this.bestBrainsNextGen.length - this.selectedBestBrain].age; // Inverse selection because array is sorted ascending
+            connection_count.innerHTML = this.bestBrainsNextGen[this.bestBrainsNextGen.length - this.selectedBestBrain].connectionCount;
+        }
     }
   }
 
@@ -963,7 +989,14 @@ class Logger {
 
 // Main
 
+// Create world
+var world = new World();
+world.generate();
+world.draw();
+
 // UI funcitons
+
+// Speed control
 function speed(control) {
     let minus = document.getElementById('speed_control_minus');
     let plus = document.getElementById('speed_control_plus');
@@ -979,14 +1012,29 @@ function speed(control) {
     }
 }
 
+// Rank control
+function rank(control, world) {
+    let minus = document.getElementById('rank_control_minus');
+    let plus = document.getElementById('rank_control_plus');
+
+    if (control == "minus") {
+        world.bestBrainsNextGen.length > 1 ? plus.classList.remove('disabled') : false;
+        world.selectedBestBrain  > 1 ? world.selectedBestBrain-- : false; // -2 because rank is is counted from 1 not 0
+        world.selectedBestBrain == 1 ? minus.classList.add('disabled') : false;
+    }
+    if (control == "plus") {
+        world.bestBrainsNextGen.length > 1 ? minus.classList.remove('disabled') : false;
+        world.selectedBestBrain < world.bestBrainsNextGen.length ? world.selectedBestBrain++ : false;
+        world.selectedBestBrain == world.bestBrainsNextGen.length ? plus.classList.add('disabled') : false;
+    }
+}
+
 // Add UI event listeners
 document.getElementById('speed_control_minus').addEventListener("click", function(){speed("minus")});
 document.getElementById('speed_control_plus').addEventListener("click", function(){speed("plus")});
 
-// Create world
-var world = new World();
-world.generate();
-world.draw();
+document.getElementById('rank_control_minus').addEventListener("click", function(){rank("minus", world)});
+document.getElementById('rank_control_plus').addEventListener("click", function(){rank("plus", world)});
 
 // Initiate logger
 var logger = new Logger();

@@ -13,28 +13,75 @@
         </div>
         <div id="main">
             <div id="title">flatland</div>
-            <br>
             <canvas id="flatland" width="700" height="400"></canvas>
-            <table id="stats">
-                <tr>
-                  <th>life</th>
-                  <th>age</th>
-                  <th>max age</th>
-                  <th>elapsed</th>
-                  <th class="spacing"></th>
-                  <th rowspan="2" id="speed_control_minus">-</th>
-                  <th class="speed">speed</th>
-                  <th rowspan="2" id="speed_control_plus">+</th>
-                </tr>
-                <tr>
-                  <td id="life"></td>
-                  <td id="age"></td>
-                  <td id="max age"></td>
-                  <td id="elapsed"></td>
-                  <td class="spacing"></td>
-                  <td class="speed" id="speed"></td>
-                </tr>
-            </table>
+
+            <div id="left">
+                <div id="stats">
+                    <div class="stat">
+                        <div class="label_stats">life</div>
+                        <div class="value" id="life">123</div>
+                    </div>
+                    <div class="stat">
+                        <div class="label_stats">age</div>
+                        <div class="value" id="age">123</div>
+                    </div>
+                    <div class="stat">
+                        <div class="label_stats">max age</div>
+                        <div class="value" id="max_age">123</div>
+                    </div>
+                    <div class="stat">
+                        <div class="label_stats">elapsed</div>
+                        <div class="value"  id="elapsed">123</div>
+                    </div>
+                </div>
+
+                <div id="best">
+                    <div>
+                        <div class="control disabled" id="rank_control_minus">&#60;</div>
+                        <div class="rank_box">
+                            <div class="rank_label">best brains</div>
+                            <div class="rank_value" id="rank">rank</div>
+                        </div>
+                        <div class="control disabled" id="rank_control_plus">&#62;</div>
+                    </div>
+                    <div class="best_stat">
+                        <div class="best_label">age reached</div>
+                        <div class="best_value" id="age_reached">N/A</div>
+                    </div>
+                    <div class="best_stat">
+                        <div class="best_label">connections</div>
+                        <div class="best_value" id="connection_count">N/A</div>
+                    </div>
+                    <div class="best_stat">
+                        <div class="best_label">internal neurons</div>
+                        <div class="best_value">N/A</div>
+                    </div>
+                    <div class="best_stat">
+                        <div class="best_label">i/o neurons</div>
+                        <div class="best_value">N/A</div>
+                    </div>
+                    <div class="best_stat">
+                        <div class="best_label">unconnected i/o</div>
+                        <div class="best_value">N/A</div>
+                    </div>
+                    <div class="best_stat">
+                        <div class="best_label">generation</div>
+                        <div class="best_value">N/A</div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="right">
+                <div>
+                    <div class="control" id="speed_control_minus">-</div>
+                    <div class="config_box">
+                        <div class="config_label">speed</div>
+                        <div class="config_value" id="speed">123</div>
+                    </div>
+                    <div class="control" id="speed_control_plus">+</div>
+                </div>
+            </div>
+
         </div>
         <script src="main.js"></script>
     </body>
