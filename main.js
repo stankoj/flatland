@@ -266,6 +266,7 @@ class World {
                 // The best brain list also enforces diversity by ensuring new brains are added only if diversity is maintained or increased
                 // TODO: Eliminate one-hit wonders (doing multiple runs, and then maybe using median of max age, or take min age into account)
                 // TODO: Move the evolutionary logic out into a separate method/function or even class
+                // TODO: Make selection based on diversity, not just fitness
 
                 // Add robot
                 //while (!this.addSquare(this.state, Robot, {"algorithm":"random"}));
@@ -309,18 +310,24 @@ class World {
                     // Get average age in best brains array
                     this.avgBestBrainsAge = this.bestBrainsNextGen.reduce((total, next) => total + next.age, 0) / this.bestBrainsNextGen.length;
 
-                    // Get connection count in best brains array
+                    // Get brain stats
                     var connectionCounts = [];
                     for (var b = 0; b < this.bestBrainsNextGen.length; b++) {
+                        let tempBrain = JSON.parse(this.bestBrainsNextGen[b].brain);
                         connectionCounts.push((this.bestBrainsNextGen[b]["brain"].match(/weight/g) || 0).length);
+                        this.bestBrainsNextGen[b].connectionCount = connectionCounts[b];
+                        this.bestBrainsNextGen[b].rank = b+1;
+                        this.bestBrainsNextGen[b].generation = tempBrain.fingerprint.length;
+                        this.bestBrainsNextGen[b].inputNeuronsCount = tempBrain.connectome.filter(neuron => neuron.type == "input").length;
+                        this.bestBrainsNextGen[b].outputNeuronsCount = tempBrain.connectome.filter(neuron => neuron.type == "output").length;
+                        // Instantiate brain to easier access rest of stats
+                        tempBrain = new Brain(this.bestBrainsNextGen[b].brain, this.bestBrainsNextGen[b].inputNeuronsCount, this.bestBrainsNextGen[b].outputNeuronsCount);
+                        this.bestBrainsNextGen[b].internalNeuronsCount = tempBrain.internalNeurons.length;
+                        this.bestBrainsNextGen[b].unconnectedInputNeuronsCount = tempBrain.inputNeurons.filter(neuron => neuron.outputConnections.length == 0).length;
+                        this.bestBrainsNextGen[b].unconnectedOutputNeuronsCount = tempBrain.outputNeurons.filter(neuron => neuron.inputConnections.length == 0).length;
                     }
                     this.avgBestBrainsConnectionCount = connectionCounts.reduce((a, b) => a + b) / connectionCounts.length;
 
-                    // Other stats
-                    for (let b = 0; b < this.bestBrainsNextGen.length; b++) {
-                        this.bestBrainsNextGen[b].rank = b+1;
-                        this.bestBrainsNextGen[b].connectionCount = connectionCounts[b];
-                    }
                 modifiedBestBrainList = false;
                 }
 
@@ -407,6 +414,10 @@ class World {
         var rankPlus = document.getElementById('rank_control_plus');
         var age_reached = document.getElementById('age_reached');
         var connection_count = document.getElementById('connection_count');
+        var internalNeuronsCount = document.getElementById('internal_neuron_count');
+        var ioCount = document.getElementById('io_count');
+        var unconnectedCount = document.getElementById('unconnected_count');
+        var generation = document.getElementById('generation');
         updateLife.innerHTML = this.life;
         updateAge.innerHTML = this.age;
         updateMaxAge.innerHTML = this.maxAge;
@@ -416,8 +427,13 @@ class World {
         rank.innerHTML = "rank " + this.selectedBestBrain;
         this.bestBrainsNextGen.length > this.selectedBestBrain ? rankPlus.classList.remove('disabled') : false;
         if (this.bestBrainsNextGen.length > 0) {
-            age_reached.innerHTML = this.bestBrainsNextGen[this.bestBrainsNextGen.length - this.selectedBestBrain].age; // Inverse selection because array is sorted ascending
-            connection_count.innerHTML = this.bestBrainsNextGen[this.bestBrainsNextGen.length - this.selectedBestBrain].connectionCount;
+            let currentBrain = this.bestBrainsNextGen[this.bestBrainsNextGen.length - this.selectedBestBrain];// Inverse selection because array is sorted ascending
+            age_reached.innerHTML = currentBrain.age; 
+            connection_count.innerHTML = currentBrain.connectionCount;
+            internalNeuronsCount.innerHTML = currentBrain.internalNeuronsCount;
+            ioCount.innerHTML = currentBrain.inputNeuronsCount + "/" + currentBrain.outputNeuronsCount;
+            unconnectedCount.innerHTML = currentBrain.unconnectedInputNeuronsCount + "/" + currentBrain.unconnectedOutputNeuronsCount;
+            generation.innerHTML = currentBrain.generation;
         }
     }
   }
@@ -596,7 +612,7 @@ class Creature {
         this.vision = 1;
         this.visionElements = ["earth", "rock", "grass"]
         this.outputs = 4;
-        this.brain = new Brain(options.brain, Math.pow(this.vision+this.vision+1, 2) * this.visionElements.length, this.outputs); 
+        this.brain = new Brain(options.brain, Math.pow(this.vision+this.vision+1, 2) * this.visionElements.length, this.outputs, true); 
     }
 
     // Update creature
@@ -703,7 +719,7 @@ class Connection {
 
 // The Brain
 class Brain {
-    constructor(brain, inputs, outputs) {
+    constructor(brain, inputs, outputs, mutate = false) {
         this.inputs = inputs;
         this.output = outputs;
         this.inputNeurons = [];
@@ -761,7 +777,9 @@ class Brain {
         }
         
         // Mutate brain after import
-        this.mutate();
+        if (mutate == true) {
+            this.mutate();
+        }
 
     }
 
