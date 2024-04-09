@@ -18,19 +18,24 @@ var config = {
 "worldWidth" : 70,
 "grassPercentange" : 0.1,
 "speed" : 4,
+"playbackSpeed" : 4,
 "squareSize" : 10
 }
 
 // to track evolutionary tree globally. This is just an incrementing number used for generating creature fingerprint
 var genotype = 0;
 
+// Training or playback
+var playback = 0;
+
 // Classes
 
 // Thw World class represents the world an its content
 class World {
-    constructor() {
+    constructor(worldType = "training") {
         // World properties
         // TODO: Set up dynamic population size (small initially, but growing as number of parameters grow)
+        this.worldType = worldType;
         this.height = config.worldHeight;
         this.width = config.worldWidth;
         this.bestBrain = false;
@@ -253,6 +258,12 @@ class World {
                 // Remove actor
                 var brain = actions[i]["object"].brain.export();
                 this.state[location[0]][location[1]] = currentField.filter(e => e!=actions[i]["object"]);
+
+                // If playback mode, just regenerate with currently selected brain, and ignore evolutionary steps below
+                if (this.worldType == "playback") {
+                    this.generate(brain, this.regenerateWorld);
+                    continue;
+                }
 
                 // Key rules for evolution
                 // 1. The fittest should always survive
@@ -1009,6 +1020,7 @@ class Logger {
 
 // Create world
 var world = new World();
+var playbackWorld = undefined;
 world.generate();
 world.draw();
 
@@ -1047,12 +1059,21 @@ function rank(control, world) {
     }
 }
 
+// Playback control
+function playbackControl() {
+    var button = document.getElementById('playback');
+    playback == 0 ? playback = 1 : playback = 0;
+    playback == 0 ? button.innerHTML = "playback" : button.innerHTML = "back";
+}
+
 // Add UI event listeners
 document.getElementById('speed_control_minus').addEventListener("click", function(){speed("minus")});
 document.getElementById('speed_control_plus').addEventListener("click", function(){speed("plus")});
 
 document.getElementById('rank_control_minus').addEventListener("click", function(){rank("minus", world)});
 document.getElementById('rank_control_plus').addEventListener("click", function(){rank("plus", world)});
+
+document.getElementById('playback').addEventListener("click", function(){playbackControl()});
 
 // Initiate logger
 var logger = new Logger();
@@ -1062,11 +1083,15 @@ var lastDraw = 0;
 var doUpdate = 0;
 var lastUpdate = 0;
 var lastUpdateCycle = 0;
+var doUpdatePlayback = 0;
+var lastUpdatePlayback = 0;
+var lastUpdateCyclePlayback = 0;
 
 // Update loop
 // The world update function works via a web worker because requestAnimationFeame stops when tab is not in focus
 var w = new Worker("webworker.js");
 w.onmessage = function(event) {
+    // Training update
     var speed = 1000 / config.speed;
     doUpdate += (performance.now()-lastUpdateCycle)/speed;
     while (Math.floor(doUpdate>0)) {
@@ -1076,14 +1101,41 @@ w.onmessage = function(event) {
         doUpdate--;
         lastUpdate = performance.now();
     }
-    lastUpdateCycle = performance.now();   
+    lastUpdateCycle = performance.now();
+    
+    // Playback update
+    if (playback == 1) {
+        if (playbackWorld == undefined) {
+            playbackWorld = new World("playback");
+            playbackWorld.generate(world.bestBrainsNextGen[world.selectedBestBrain-1].brain);
+            playbackWorld.draw();
+        }
+        var playbackSpeed = 1000 / config.playbackSpeed;
+        doUpdatePlayback += (performance.now()-lastUpdateCyclePlayback)/playbackSpeed;
+        while (Math.floor(doUpdatePlayback>0)) {
+            playbackWorld.update();
+            logger.logUpdateTime(performance.now()-lastUpdatePlayback);
+            logger.updateCount++;
+            doUpdatePlayback--;
+            lastUpdatePlayback = performance.now();
+        }
+        lastUpdateCyclePlayback = performance.now();
+    }
+    else {
+        playbackWorld = undefined;
+    }
   };
 
 //Drawing loop
 // The drawing loop works via requestAnimationFrame
 function drawingLoop(timeStamp) {
     logger.logFrameTime(timeStamp-lastDraw);
-    world.draw();
+    if (playback == 0) {
+        world.draw();
+    }
+    else if (playbackWorld != undefined) {
+        playbackWorld.draw();
+    }
     logger.draw();
     lastDraw=timeStamp;
     window.requestAnimationFrame(drawingLoop);

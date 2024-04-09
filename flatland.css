@@ -127,3 +127,13 @@ body {
 .best_value {
     text-align: right;
 }
+
+#playback {
+    width: 430px;
+    background-color: #1B202E;
+    text-align: center;
+    height: 40px;
+    line-height: 40px;
+    color: #CCCCCC;
+    cursor: pointer;
+}
