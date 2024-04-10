@@ -136,4 +136,15 @@ body {
     line-height: 40px;
     color: #CCCCCC;
     cursor: pointer;
+    user-select: none;
+}
+
+.hidden {
+    display: none;
+}
+
+#playback_label {
+    text-align: center;
+    padding-left: 150px;
+    height: 0px;
 }

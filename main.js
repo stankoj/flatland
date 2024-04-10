@@ -110,7 +110,9 @@ class World {
 
         // Generate actors
         //while (!this.addSquare(this.state, Robot, {"algorithm":"random"}));
-        while (!this.addSquare(this.state, Creature, {"brain":brain}));
+        var mutate;
+        this.worldType == "training" ? mutate = true : mutate = false;
+        while (!this.addSquare(this.state, Creature, {"brain":brain, "mutate": mutate}));
     }
 
     // Clear world state
@@ -262,6 +264,7 @@ class World {
                 // If playback mode, just regenerate with currently selected brain, and ignore evolutionary steps below
                 if (this.worldType == "playback") {
                     this.generate(brain, this.regenerateWorld);
+                    //console.log((brain.match(/weight/g) || 0).length);
                     continue;
                 }
 
@@ -423,6 +426,7 @@ class World {
         var avgConnCount = document.getElementById("avg conn count");
         let rank = document.getElementById('rank');
         var rankPlus = document.getElementById('rank_control_plus');
+        var rankMinus = document.getElementById('rank_control_minus');
         var age_reached = document.getElementById('age_reached');
         var connection_count = document.getElementById('connection_count');
         var internalNeuronsCount = document.getElementById('internal_neuron_count');
@@ -432,11 +436,12 @@ class World {
         updateLife.innerHTML = this.life;
         updateAge.innerHTML = this.age;
         updateMaxAge.innerHTML = this.maxAge;
-        speed.innerHTML = config.speed;
+        playback == 1 ? speed.innerHTML = config.playbackSpeed : speed.innerHTML = config.speed;
         avgAge.innerHTML = this.avgBestBrainsAge;
         avgConnCount.innerHTML = this.avgBestBrainsConnectionCount;
-        rank.innerHTML = "rank " + this.selectedBestBrain;
+        playback == 0 ? rank.innerHTML = "rank " + this.selectedBestBrain : false;
         this.bestBrainsNextGen.length > this.selectedBestBrain ? rankPlus.classList.remove('disabled') : false;
+        this.selectedBestBrain > 1 ? rankMinus.classList.remove('disabled') : false;
         if (this.bestBrainsNextGen.length > 0) {
             let currentBrain = this.bestBrainsNextGen[this.bestBrainsNextGen.length - this.selectedBestBrain];// Inverse selection because array is sorted ascending
             age_reached.innerHTML = currentBrain.age; 
@@ -611,19 +616,20 @@ class Lava {
 
 // Creature with a brain
 class Creature {
-    constructor(options={"brain":false}) {
+    constructor(options={"brain":false, "mutate":false}) {
         this.type = "actor";
         this.width = config.squareSize;
         this.height = config.squareSize;
         this.z = 2;
         this.color = "#6600CC";
         this.life = 100;
+        this.mutate = options.mutate;
         this.age = 0;
         this.selected = true;
         this.vision = 1;
         this.visionElements = ["earth", "rock", "grass"]
         this.outputs = 4;
-        this.brain = new Brain(options.brain, Math.pow(this.vision+this.vision+1, 2) * this.visionElements.length, this.outputs, true); 
+        this.brain = new Brain(options.brain, Math.pow(this.vision+this.vision+1, 2) * this.visionElements.length, this.outputs, this.mutate); 
     }
 
     // Update creature
@@ -1028,17 +1034,19 @@ world.draw();
 
 // Speed control
 function speed(control) {
+    var speed;
+    playback == 1 ? speed = "playbackSpeed" : speed = "speed";
     let minus = document.getElementById('speed_control_minus');
     let plus = document.getElementById('speed_control_plus');
     if (control == "minus") {
         plus.classList.remove('disabled')
-        config.speed > 1 ? config.speed /= 2 : false;
-        config.speed == 1 ? minus.classList.add('disabled') : false;
+        config[speed] > 1 ? config[speed] /= 2 : false;
+        config[speed] == 1 ? minus.classList.add('disabled') : false;
     }
     if (control == "plus") {
         minus.classList.remove('disabled')
-        config.speed < 65536 ? config.speed *= 2 : false;
-        config.speed == 65536 ? plus.classList.add('disabled') : false;
+        config[speed] < 65536 ? config[speed] *= 2 : false;
+        config[speed] == 65536 ? plus.classList.add('disabled') : false;
     }
 }
 
@@ -1060,20 +1068,41 @@ function rank(control, world) {
 }
 
 // Playback control
-function playbackControl() {
+function playbackControl(world) {
+
+    if (world.bestBrainsNextGen.length == 0) {return;}
+
     var button = document.getElementById('playback');
-    playback == 0 ? playback = 1 : playback = 0;
-    playback == 0 ? button.innerHTML = "playback" : button.innerHTML = "back";
+    var playback_label = document.getElementById('playback_label');
+    var max_age = document.getElementById('max_age');
+    var elapsed = document.getElementById('elapsed');
+    var minus = document.getElementById('rank_control_minus');
+    var plus = document.getElementById('rank_control_plus');
+
+    max_age.parentNode.classList.toggle("hidden");
+    elapsed.parentNode.classList.toggle("hidden");
+    playback_label.classList.toggle("hidden");
+
+    if (playback == 0) {
+        playback = 1;
+        button.innerHTML = "back";
+        minus.classList.add('disabled');
+        plus.classList.add('disabled');
+    }
+    else {
+        playback = 0;
+        button.innerHTML = "playback";
+    }
 }
 
 // Add UI event listeners
 document.getElementById('speed_control_minus').addEventListener("click", function(){speed("minus")});
 document.getElementById('speed_control_plus').addEventListener("click", function(){speed("plus")});
 
-document.getElementById('rank_control_minus').addEventListener("click", function(){rank("minus", world)});
-document.getElementById('rank_control_plus').addEventListener("click", function(){rank("plus", world)});
+document.getElementById('rank_control_minus').addEventListener("click", function(){rank("minus", playback == 1 ? playbackWorld : world)});
+document.getElementById('rank_control_plus').addEventListener("click", function(){rank("plus", playback == 1 ? playbackWorld : world)});
 
-document.getElementById('playback').addEventListener("click", function(){playbackControl()});
+document.getElementById('playback').addEventListener("click", function(){playbackControl(world)});
 
 // Initiate logger
 var logger = new Logger();
@@ -1093,6 +1122,7 @@ var w = new Worker("webworker.js");
 w.onmessage = function(event) {
     // Training update
     var speed = 1000 / config.speed;
+    lastUpdateCycle == 0 ? lastUpdateCycle = performance.now() : false;
     doUpdate += (performance.now()-lastUpdateCycle)/speed;
     while (Math.floor(doUpdate>0)) {
         world.update();
@@ -1107,22 +1137,27 @@ w.onmessage = function(event) {
     if (playback == 1) {
         if (playbackWorld == undefined) {
             playbackWorld = new World("playback");
-            playbackWorld.generate(world.bestBrainsNextGen[world.selectedBestBrain-1].brain);
+            playbackWorld.generate(world.bestBrainsNextGen[world.bestBrainsNextGen.length - world.selectedBestBrain].brain);// Inverse selection because array is sorted ascending);
             playbackWorld.draw();
         }
         var playbackSpeed = 1000 / config.playbackSpeed;
+        lastUpdateCyclePlayback == 0 ? lastUpdateCyclePlayback = performance.now() : false;
         doUpdatePlayback += (performance.now()-lastUpdateCyclePlayback)/playbackSpeed;
         while (Math.floor(doUpdatePlayback>0)) {
             playbackWorld.update();
-            logger.logUpdateTime(performance.now()-lastUpdatePlayback);
-            logger.updateCount++;
+            //logger.logUpdateTime(performance.now()-lastUpdatePlayback); //no need for playback world to impact overall elapsed updates?
+            //logger.updateCount++;
             doUpdatePlayback--;
             lastUpdatePlayback = performance.now();
         }
         lastUpdateCyclePlayback = performance.now();
     }
     else {
+        // Reset playback world after closing playback
         playbackWorld = undefined;
+        doUpdatePlayback = 0;
+        lastUpdatePlayback = 0;
+        lastUpdateCyclePlayback = 0;
     }
   };
 
