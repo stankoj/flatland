@@ -19,7 +19,8 @@ var config = {
 "grassPercentange" : 0.1,
 "speed" : 4,
 "playbackSpeed" : 4,
-"squareSize" : 10
+"squareSize" : 10,
+"regenerateWorld"  : false
 }
 
 // to track evolutionary tree globally. This is just an incrementing number used for generating creature fingerprint
@@ -50,8 +51,8 @@ class World {
         this.populationRemaining = this.populationSize;
         this.state=Array.from(new Array(this.height), () => new Array(this.width).fill());
         this.grassPercentage = config.grassPercentange;
-        this.regenerateWorld = false;
-        
+        this.regenerateWorld = config.regenerateWorld;
+
         // Stats
         this.life = 0;
         this.age = 0;
@@ -78,7 +79,7 @@ class World {
     }
 
     // Function to generate the world
-    generate(brain = false, generateEnvironment = true) {
+    generate(brain = false, generateEnvironment = true, mutate = true) {
         if (generateEnvironment == true) {            
             // Clear world
             this.clear();
@@ -109,10 +110,12 @@ class World {
         }
 
         // Generate actors
-        //while (!this.addSquare(this.state, Robot, {"algorithm":"random"}));
-        var mutate;
-        this.worldType == "training" ? mutate = true : mutate = false;
-        while (!this.addSquare(this.state, Creature, {"brain":brain, "mutate": mutate}));
+        if (this.worldType == "randomRobot") {
+            while (!this.addSquare(this.state, Robot, {"algorithm":"random"}));
+        } 
+        else {
+            while (!this.addSquare(this.state, Creature, {"brain":brain, "mutate": mutate}));
+        }
     }
 
     // Clear world state
@@ -258,36 +261,33 @@ class World {
             var currentField = this.state[location[0]][location[1]];
             if (actions[i]["object"].life <= 0) {
                 // Remove actor
-                var brain = actions[i]["object"].brain.export();
+                if (this.worldType != "randomRobot") {
+                    var brain = actions[i]["object"].brain.export();
+                }
                 this.state[location[0]][location[1]] = currentField.filter(e => e!=actions[i]["object"]);
 
                 // If playback mode, just regenerate with currently selected brain, and ignore evolutionary steps below
                 if (this.worldType == "playback") {
-                    this.generate(brain, this.regenerateWorld);
+                    this.generate(brain, this.regenerateWorld, false);
                     //console.log((brain.match(/weight/g) || 0).length);
                     continue;
                 }
 
-                // Key rules for evolution
-                // 1. The fittest should always survive
-                // 2. Diversity
-                // 3. Improvement is not always immediate. Exploration is important.
+                if (this.worldType == "randomRobot") {
+                    this.generate(false, this.regenerateWorld, false);
+                    continue
+                }
 
                 // Algorithm
-                // We are keeping a list of overall best brains and a list of best brains from the separate cycle.
-                // That way we ensure the overall best brains always survice, and we are also providing some room for exploration with the overall population.
-                // The two lists are used to generated the population for a cycle.
-                // The best brain list also enforces diversity by ensuring new brains are added only if diversity is maintained or increased
-                // TODO: Eliminate one-hit wonders (doing multiple runs, and then maybe using median of max age, or take min age into account)
+                // We keep a list of brains from current generation and their fitness
+                // We select X best brains from the list of all brains to go into next generation
+                // A new list of populationSize is generated using random samples from selected best brains in previous step
+                // Samples are carried over to new generation mutated or without mutation (randomly), or we can set to always mutate
+                // TODO: Do not randomly sample from best brains, but depending on fitness - I tried this but it had negative impact on diversity
                 // TODO: Move the evolutionary logic out into a separate method/function or even class
                 // TODO: Make selection based on diversity, not just fitness
 
-                // Add robot
-                //while (!this.addSquare(this.state, Robot, {"algorithm":"random"}));
-
-                // Generating population
-
-                // Check if to add brain to bestBrains list or to general population
+                // Check if to add brain to bestBrains list and generate stats for best brains
 
                 let modifiedBestBrainList = false;
 
@@ -301,16 +301,16 @@ class World {
                     for (let b = 0; b < this.bestBrainsNextGen.length; b++) {
                         if (actions[i]["object"].age >= this.bestBrainsNextGen[b].age) {
                             // Check for diversity
-                            let tempBestBrainsNextGen = this.bestBrainsNextGen.slice();
-                            tempBestBrainsNextGen[b]={"brain":brain,"age":actions[i]["object"].age};
-                            if (this.diversity(this.bestBrainsNextGen) <= this.diversity(tempBestBrainsNextGen)) {
+                            //let tempBestBrainsNextGen = this.bestBrainsNextGen.slice();
+                            //tempBestBrainsNextGen[b]={"brain":brain,"age":actions[i]["object"].age};
+                            //if (this.diversity(this.bestBrainsNextGen) <= this.diversity(tempBestBrainsNextGen)) {
                                 this.bestBrainsNextGen[b]={"brain":brain,"age":actions[i]["object"].age};
                                 modifiedBestBrainList = true;
                                 //console.log(this.diversity(this.bestBrainsNextGen));
-                            }
-                            else {
-                                continue;
-                            }
+                            //}
+                            //else {
+                            //    continue;
+                            //}
                         }
                         break;
                     }
@@ -345,34 +345,32 @@ class World {
                 modifiedBestBrainList = false;
                 }
 
-                // Add to general population in any case
-                this.populationNextGen.push({"brain":brain, "age":actions[i]["object"].age});
+                // Add brain to population of next generation candidates
+                this.populationNextGen.push({"brain":brain, "age":actions[i]["object"].age, "mutate":true}); // Change mutate to false if you want to carry over some unmutated samples into next generation
 
-                // If population size reached, generate next generation
-                if (this.populationNextGen.length == this.populationSize) {
+                // If current gen population processed, generate new round
+                if (this.population.length == 0) {
                     // Sort next gen population by age
                     let sortedPopulationNextGen = this.populationNextGen.sort((a, b) => parseFloat(b.age) - parseFloat(a.age));
                     this.populationNextGen = sortedPopulationNextGen.slice(0, this.keepOtherBrains);
 
                     // Generate population for next round
-                    this.population = this.populationNextGen.concat(this.bestBrainsNextGen); 
+                    this.population = this.populationNextGen;//.concat(this.bestBrainsNextGen); 
                     this.populationNextGen = [];
 
                     // Repeat random brains from population until full population size is reached
                     while (this.population.length < this.populationSize) {
-                        this.population.push(this.population[Math.floor(Math.random()*this.population.length)]);
+                        var randomBrain = this.population[Math.floor(Math.random()*this.population.length)];
+                        var randomBrain = { ...randomBrain}; // Make copy of object
+                        randomBrain.mutate = true;
+                        this.population.push(randomBrain);
                     }
                 }
 
                 // Generate new world
-                // If buiding initial population
-                if (this.population.length == 0) {
-                    this.generate(false, this.regenerateWorld);
-                }
-                else {
-                // If not initial population
-                    this.generate(this.population.pop().brain, this.regenerateWorld)
-                }
+
+                var nextCreature = this.population.pop();
+                this.generate(nextCreature.brain, this.regenerateWorld, nextCreature.mutate);
 
                 genotype++;
             }
@@ -1025,6 +1023,7 @@ class Logger {
 // Main
 
 // Create world
+//var world = new World("randomRobot");
 var world = new World();
 var playbackWorld = undefined;
 world.generate();
@@ -1076,8 +1075,10 @@ function playbackControl(world) {
     var playback_label = document.getElementById('playback_label');
     var max_age = document.getElementById('max_age');
     var elapsed = document.getElementById('elapsed');
-    var minus = document.getElementById('rank_control_minus');
-    var plus = document.getElementById('rank_control_plus');
+    var minusRank = document.getElementById('rank_control_minus');
+    var plusRank = document.getElementById('rank_control_plus');
+    let minusSpeed = document.getElementById('speed_control_minus');
+    let plusSpeed = document.getElementById('speed_control_plus');
 
     max_age.parentNode.classList.toggle("hidden");
     elapsed.parentNode.classList.toggle("hidden");
@@ -1086,12 +1087,16 @@ function playbackControl(world) {
     if (playback == 0) {
         playback = 1;
         button.innerHTML = "back";
-        minus.classList.add('disabled');
-        plus.classList.add('disabled');
+        config.playbackSpeed == 1 ? minusSpeed.classList.add('disabled') : minusSpeed.classList.remove('disabled');
+        config.playbackSpeed == 65536 ? plusSpeed.classList.add('disabled') : plusSpeed.classList.remove('disabled');
+        minusRank.classList.add('disabled');
+        plusRank.classList.add('disabled');
     }
     else {
         playback = 0;
         button.innerHTML = "playback";
+        config.speed == 1 ? minusSpeed.classList.add('disabled') : minusSpeed.classList.remove('disabled');
+        config.speed == 65536 ? plusSpeed.classList.add('disabled') : plusSpeed.classList.remove('disabled');
     }
 }
 
@@ -1137,7 +1142,7 @@ w.onmessage = function(event) {
     if (playback == 1) {
         if (playbackWorld == undefined) {
             playbackWorld = new World("playback");
-            playbackWorld.generate(world.bestBrainsNextGen[world.bestBrainsNextGen.length - world.selectedBestBrain].brain);// Inverse selection because array is sorted ascending);
+            playbackWorld.generate(world.bestBrainsNextGen[world.bestBrainsNextGen.length - world.selectedBestBrain].brain, true, false); // Inverse selection because array is sorted ascending); Initial generation of terrain must be on.
             playbackWorld.draw();
         }
         var playbackSpeed = 1000 / config.playbackSpeed;
